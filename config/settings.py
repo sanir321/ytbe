@@ -101,8 +101,8 @@ def load_settings() -> Settings:
         yt_client_id=os.environ["YT_CLIENT_ID"],
         yt_client_secret=os.environ["YT_CLIENT_SECRET"],
         yt_refresh_token=os.environ["YT_REFRESH_TOKEN"],
-        cron_hour=int(os.getenv("CRON_HOUR", "9")),
-        cron_minute=int(os.getenv("CRON_MINUTE", "0")),
+        cron_hour=int(os.getenv("CRON_HOUR", "7")),
+        cron_minute=int(os.getenv("CRON_MINUTE", "30")),
         port=int(os.getenv("PORT", "8080")),
         data_dir=Path(os.getenv("DATA_DIR", str(PROJECT_ROOT / "data"))),
     )
