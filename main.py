@@ -343,14 +343,10 @@ def main() -> None:
     logger.info("Scheduler started — next run at %02d:%02d %s",
                 settings.cron_hour, settings.cron_minute, settings.cron_timezone)
 
-    # One-shot trigger: if TRIGGER_NOW is set, run pipeline immediately
-    trigger = os.environ.get("TRIGGER_NOW", "")
-    if trigger.lower() in ("1", "true", "yes"):
-        logger.info("TRIGGER_NOW=%s — running pipeline immediately", trigger)
-        t = threading.Thread(target=run_pipeline, args=[settings], daemon=True)
-        t.start()
-    else:
-        logger.info("TRIGGER_NOW=%s — not set, skipping immediate run", trigger)
+    # Run pipeline immediately on first deploy (safe: dupes are skipped,
+    # stale queues are reset, count_active() excludes posted/failed)
+    t = threading.Thread(target=run_pipeline, args=[settings], daemon=True)
+    t.start()
 
     # Keep main thread alive
     try:
