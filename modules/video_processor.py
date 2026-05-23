@@ -129,6 +129,7 @@ class VideoProcessor:
                 "-vf", vf,
                 "-t", str(max_dur),
                 "-c:v", "libx264",
+                "-threads", "2",
                 "-crf", "23",
                 "-preset", "fast",
                 "-c:a", "aac",
