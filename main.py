@@ -27,6 +27,7 @@ from modules.ig_downloader import IGDownloader
 from modules.video_processor import VideoProcessor
 from modules.caption_generator import CaptionGenerator
 from modules.yt_uploader import YTUploader
+from modules.telegram_notifier import TelegramNotifier
 
 logger = logging.getLogger("bot")
 
@@ -84,6 +85,7 @@ def run_pipeline(settings) -> None:
                 logger.info("Stale queue detected (%d entries) with empty reels_used — reset", stale_count)
 
         db = QueueDB(db_path)
+        telegram = TelegramNotifier(settings)
 
         # --- Step 1: Refill queue if running low ---
         from tracker.reel_url_store import count_unused
@@ -113,8 +115,10 @@ def run_pipeline(settings) -> None:
                         logger.info("Added to queue: %s", shortcode)
                 except Exception as e:
                     logger.error("Download failed: %s", e)
+                    telegram.on_error("download", "unknown", str(e))
             else:
                 logger.warning("reels.txt is empty — no URLs remaining")
+                telegram.on_skip("reels.txt is empty")
 
         # --- Step 2: Process videos ---
         processor = VideoProcessor(settings)
@@ -134,6 +138,7 @@ def run_pipeline(settings) -> None:
                 logger.info("Processed: %s", shortcode)
             else:
                 db.update_status(reel["id"], "failed", error_msg="Processing failed")
+                telegram.on_error("process", shortcode, "FFmpeg processing failed")
             reel = db.get_next_pending()
 
         # --- Step 3: Generate captions ---
@@ -177,9 +182,11 @@ def run_pipeline(settings) -> None:
                     if video_id:
                         db.update_status(reel["id"], "posted", yt_video_id=video_id)
                         logger.info("UPLOADED: https://youtu.be/%s", video_id)
+                        telegram.on_upload(title, video_id)
                 except Exception as e:
                     logger.error("Upload failed: %s", e)
                     db.update_status(reel["id"], "failed", error_msg=str(e))
+                    telegram.on_error("upload", reel["ig_shortcode"], str(e))
             else:
                 logger.warning("Processed file missing for reel #%d", reel["id"])
                 db.update_status(reel["id"], "failed", error_msg="File missing at upload time")

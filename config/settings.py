@@ -57,6 +57,10 @@ class Settings:
     # Railway
     port: int = 8080
 
+    # Telegram notifications (optional)
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+
     def __post_init__(self) -> None:
         """Derive paths from data_dir and ensure all directories exist."""
         self.videos_raw_dir = self.data_dir / "videos" / "raw"
@@ -105,4 +109,6 @@ def load_settings() -> Settings:
         cron_minute=int(os.getenv("CRON_MINUTE", "30")),
         port=int(os.getenv("PORT", "8080")),
         data_dir=Path(os.getenv("DATA_DIR", str(PROJECT_ROOT / "data"))),
+        telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
+        telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
     )
