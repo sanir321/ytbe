@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from config.settings import load_settings, ConfigError
 from tracker.db import QueueDB
+from tracker.reel_url_store import set_data_dir as _init_reel_store, is_stale
 from modules.ig_downloader import IGDownloader
 from modules.video_processor import VideoProcessor
 from modules.caption_generator import CaptionGenerator
@@ -73,13 +74,14 @@ def run_pipeline(settings) -> None:
         logger.info("=" * 50)
         logger.info("Pipeline run started")
 
+        _init_reel_store(settings.data_dir)
         db_path = settings.data_dir / "queue.db"
 
-        if os.getenv("RESET_QUEUE", "").lower() in ("true", "1"):
-            if db_path.exists():
+        if is_stale() and db_path.exists():
+            stale_count = QueueDB(db_path).count_total()
+            if stale_count > 0:
                 db_path.unlink()
-                logger.info("RESET_QUEUE=true — deleted queue.db")
-            os.environ.pop("RESET_QUEUE", None)
+                logger.info("Stale queue detected (%d entries) with empty reels_used — reset", stale_count)
 
         db = QueueDB(db_path)
 
@@ -300,7 +302,7 @@ def main() -> None:
     )
     health_thread.start()
 
-    # Schedule daily pipeline
+    # Schedule daily pipeline (first run at 07:30 IST tomorrow)
     scheduler = BackgroundScheduler()
     scheduler.add_job(
         run_pipeline,
@@ -312,15 +314,6 @@ def main() -> None:
         args=[settings],
         id="daily_pipeline",
         name="Daily Instagram→YouTube pipeline",
-    )
-
-    # Run once immediately on startup (for first deploy)
-    scheduler.add_job(
-        run_pipeline,
-        trigger="date",
-        args=[settings],
-        id="startup_run",
-        name="Startup pipeline run",
     )
 
     scheduler.start()

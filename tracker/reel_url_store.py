@@ -2,15 +2,19 @@
 
 This replaces the old approach of scraping Instagram on every run.
 Now we:
-  1. ONE-TIME: Run scrape_reels_urls.py or playwright_scrape.py to fill reels.txt
-  2. DAILY:   consume_next() returns one URL, moves it to reels_used.txt
+   1. ONE-TIME: Run scrape_reels_urls.py or playwright_scrape.py to fill reels.txt
+   2. DAILY:   consume_next() returns one URL, moves it to reels_used.txt
 
 reels.txt         — unused URLs (one per line)
 reels_used.txt    — completed URLs (one per line, for audit)
+
+Paths are initially relative to the working directory but can be moved
+to a persistent volume via set_data_dir().
 """
 
 import logging
 import re
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -20,6 +24,34 @@ logger = logging.getLogger(__name__)
 REELS_FILE = Path("data") / "reels.txt"
 USED_FILE = Path("data") / "reels_used.txt"
 DATA_DIR = Path("data")
+
+_GIT_REELS = Path("data") / "reels.txt"  # tracked in git, shipped in Docker
+
+
+def set_data_dir(data_dir: str | Path) -> None:
+    """Redirect all file paths under a persistent data directory.
+
+    On the first call, if no reels.txt exists at the new location it
+    is seeded from the git-tracked copy so the queue survives restarts.
+    Call once at startup before any other function.
+    """
+    global REELS_FILE, USED_FILE, DATA_DIR
+    DATA_DIR = Path(data_dir)
+    REELS_FILE = DATA_DIR / "reels.txt"
+    USED_FILE = DATA_DIR / "reels_used.txt"
+
+    if not REELS_FILE.exists() and _GIT_REELS.exists():
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(_GIT_REELS), str(REELS_FILE))
+        lines = [l for l in REELS_FILE.read_text().splitlines() if l.strip()]
+        logger.info("Seeded %s from app directory (%d URLs)", REELS_FILE, len(lines))
+
+
+def is_stale() -> bool:
+    """Return True if reels.txt is full but reels_used.txt is empty,
+    meaning the user restored the queue from git and wants a reset."""
+    return (REELS_FILE.exists()
+            and (not USED_FILE.exists() or not USED_FILE.read_text().strip()))
 
 
 def shortcode_from_url(url: str) -> Optional[str]:
