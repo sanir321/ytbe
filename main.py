@@ -343,6 +343,12 @@ def main() -> None:
     logger.info("Scheduler started — next run at %02d:%02d %s",
                 settings.cron_hour, settings.cron_minute, settings.cron_timezone)
 
+    # One-shot trigger: if TRIGGER_NOW is set, run pipeline immediately
+    if os.getenv("TRIGGER_NOW", "").lower() in ("1", "true", "yes"):
+        logger.info("TRIGGER_NOW detected — running pipeline immediately")
+        t = threading.Thread(target=run_pipeline, args=[settings], daemon=True)
+        t.start()
+
     # Keep main thread alive
     try:
         while True:
