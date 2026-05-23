@@ -80,8 +80,8 @@ class TestDefaults:
         monkeypatch.setenv("YT_CLIENT_SECRET", "s")
         monkeypatch.setenv("YT_REFRESH_TOKEN", "r")
         settings = load_settings()
-        assert settings.cron_hour == 9
-        assert settings.cron_minute == 0
+        assert settings.cron_hour == 7
+        assert settings.cron_minute == 30
         assert settings.cron_timezone == "Asia/Kolkata"
 
     def test_max_video_duration_default(self):

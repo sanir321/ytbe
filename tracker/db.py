@@ -174,6 +174,13 @@ class QueueDB:
         row = self._fetchone("SELECT COUNT(*) AS cnt FROM queue;")
         return row["cnt"] if row else 0
 
+    def count_active(self) -> int:
+        """Count reels still in the pipeline (not posted or failed)."""
+        row = self._fetchone(
+            "SELECT COUNT(*) AS cnt FROM queue WHERE status NOT IN ('posted', 'failed');"
+        )
+        return row["cnt"] if row else 0
+
     def get_recent(self, limit: int = 10) -> list[dict]:
         rows = self._fetchall(
             "SELECT * FROM queue ORDER BY id DESC LIMIT ?;", (limit,)

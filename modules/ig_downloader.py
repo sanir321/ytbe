@@ -49,7 +49,11 @@ class IGDownloader:
     # Public API
     # ------------------------------------------------------------------
     def download_next_reel(self) -> Optional[str]:
-        """Consume the next URL from reels.txt, download it, add to queue."""
+        """Consume the next URL from reels.txt, download it, add to queue.
+
+        Skips URLs already in the database (posted, failed, etc.) to
+        guarantee no reel is ever uploaded twice, even on container restart.
+        """
         remaining = count_unused()
         if remaining == 0:
             logger.warning("No URLs left in reels.txt")
@@ -57,32 +61,43 @@ class IGDownloader:
 
         logger.info("URLs remaining: %d", remaining)
 
-        url = consume_next()
-        if not url:
-            return None
+        # Skip any URLs already tracked in the queue DB
+        for attempt in range(remaining):
+            url = consume_next()
+            if not url:
+                return None
 
-        shortcode = shortcode_from_url(url)
-        if not shortcode:
-            logger.error("Bad URL (no shortcode): %s", url)
-            return None
+            shortcode = shortcode_from_url(url)
+            if not shortcode:
+                logger.error("Bad URL (no shortcode): %s", url)
+                continue
 
-        logger.info("Downloading: %s", shortcode)
+            if self.db.shortcode_exists(shortcode):
+                logger.info("Skipping %s — already in queue", shortcode)
+                remaining -= 1
+                continue
 
-        post = self._resolve_post(shortcode)
-        if not post:
-            logger.error("Could not resolve post %s", shortcode)
-            return None
+            # Found a fresh URL
+            logger.info("Downloading: %s", shortcode)
 
-        raw_path = self.settings.videos_raw_dir / f"{shortcode}.mp4"
-        if not self._download_video(post.video_url, raw_path):
-            logger.error("Download failed for %s", shortcode)
-            return None
+            post = self._resolve_post(shortcode)
+            if not post:
+                logger.error("Could not resolve post %s", shortcode)
+                return None
 
-        caption = post.caption or ""
-        self.db.add_reel(shortcode, caption)
-        self.db.update_status(self._get_reel_id(shortcode), "downloaded", raw_path=str(raw_path))
-        logger.info("Added to queue: %s", shortcode)
-        return shortcode
+            raw_path = self.settings.videos_raw_dir / f"{shortcode}.mp4"
+            if not self._download_video(post.video_url, raw_path):
+                logger.error("Download failed for %s", shortcode)
+                return None
+
+            caption = post.caption or ""
+            self.db.add_reel(shortcode, caption)
+            self.db.update_status(self._get_reel_id(shortcode), "downloaded", raw_path=str(raw_path))
+            logger.info("Added to queue: %s", shortcode)
+            return shortcode
+
+        logger.warning("All remaining URLs are already in the queue")
+        return None
 
     # ------------------------------------------------------------------
     # Helpers

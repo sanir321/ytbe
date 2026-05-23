@@ -83,7 +83,7 @@ def run_pipeline(settings) -> None:
         processed_count = db.count_by_status("processed")
         caption_ready_count = db.count_by_status("caption_ready")
         ready_for_upload = processed_count + caption_ready_count
-        total_in_pipeline = db.count_total()
+        total_in_pipeline = db.count_active()
 
         logger.info(
             "Queue: %d total | downloaded: %d | processed: %d | caption_ready: %d | reels.txt unused: %d",
