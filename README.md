@@ -1,55 +1,96 @@
-# ytbe
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13">
+  <img src="https://img.shields.io/badge/railway-deployed-0B0D0E?style=for-the-badge&logo=railway&logoColor=white" alt="Railway">
+  <img src="https://img.shields.io/badge/instagram-reels-E4405F?style=for-the-badge&logo=instagram&logoColor=white" alt="Instagram Reels">
+  <img src="https://img.shields.io/badge/youtube-shorts-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube Shorts">
+  <img src="https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge" alt="MIT">
+</p>
 
-**YouTube Bot for Instagram Engagement** — Automated Instagram Reel → YouTube Shorts pipeline.
+<h1 align="center">ytbe</h1>
+<p align="center"><b>YouTube Bot for Instagram Engagement</b></p>
+<p align="center">Automated Instagram Reel → YouTube Shorts pipeline.<br>
+Downloads, processes, captions, and uploads — daily, unattended, on Railway free tier.</p>
 
-Downloads one reel per day from a pre-collected URL queue, processes it with FFmpeg, generates AI-powered captions, and uploads as a public YouTube Short. Runs unattended on Railway free tier.
+---
 
-## Architecture
+## Pipeline
 
 ```
-reels.txt ──► IG Downloader ──► Video Processor ──► Caption Generator ──► YT Uploader ──► YouTube
-  (546 URLs)    (anonymous)       (FFmpeg)            (Kilo Gateway)        (API v3)         (public)
+                          ┌──────────────────┐
+      reels.txt ──────────►  IG Downloader   │
+      (546 URLs)          │  (anonymous)      │
+                          └────────┬─────────┘
+                                   │ .mp4
+                                   ▼
+                          ┌──────────────────┐
+                          │ Video Processor  │
+                          │  (FFmpeg)         │
+                          │  • trim to 60s    │
+                          │  • 1080×1920 pad  │
+                          │  • -threads 2     │
+                          └────────┬─────────┘
+                                   │ processed.mp4
+                                   ▼
+                          ┌──────────────────┐
+                          │ Caption Generator│
+                          │  (Kilo Gateway)   │
+                          │  • title          │
+                          │  • description    │
+                          │  • 30 hashtags    │
+                          └────────┬─────────┘
+                                   │ title + desc + tags
+                                   ▼
+                          ┌──────────────────┐
+                          │  YT Uploader     │
+                          │  (API v3)         │
+                          │  • public upload  │
+                          │  • token refresh  │
+                          └────────┬─────────┘
+                                   │ youtube.com/shorts/...
+                                   ▼
+                          ┌──────────────────┐
+                          │     YouTube      │
+                          │     Shorts       │
+                          └──────────────────┘
 
-                └── queue.db (SQLite) tracks each reel through every stage ──┘
+                ┌─────────────────────────────────────────┐
+                │  queue.db (SQLite) tracks every stage   │
+                │  pending → downloaded → processed →     │
+                │  caption_ready → posted                 │
+                └─────────────────────────────────────────┘
 ```
 
-### Pipeline (runs daily at 07:30 IST)
+**Schedule:** Daily at `07:30 IST` via APScheduler cron.
 
-| Step | Module | What it does |
-|------|--------|-------------|
-| 1 | `ig_downloader.py` | Reads next URL from `reels.txt`, downloads the video via `instaloader` (anonymous, no login) |
-| 2 | `video_processor.py` | Trims to ≤60s, scales/pads to 1080×1920 portrait, `-threads 2` to prevent OOM |
-| 3 | `caption_generator.py` | Calls `openrouter/free` on Kilo Gateway → generates title + 150–200 word description + 30 hashtags |
-| 4 | `yt_uploader.py` | Resumable upload via YouTube Data API v3, privacy = `public` |
-
-### Self-Heal
-
-On container restart, if `reels_used.txt` is empty but the DB has entries (user restored `reels.txt` from git), the queue is auto-reset for a clean start.
+---
 
 ## Project Structure
 
 ```
-├── main.py                      # Entry point: APScheduler + health server + graceful shutdown
-├── config/
-│   └── settings.py              # Env var loader, validation, path derivation
-├── tracker/
-│   ├── db.py                    # SQLite queue (WAL mode, BEGIN IMMEDIATE, full status flow)
-│   └── reel_url_store.py        # File-based URL queue, seeding & staleness detection
-├── modules/
-│   ├── ig_downloader.py         # Anonymous Instagram downloader (no login needed)
-│   ├── video_processor.py       # FFmpeg wrapper — trim, scale, pad
-│   ├── caption_generator.py     # AI caption generation via Kilo Gateway (OpenAI SDK)
-│   └── yt_uploader.py           # YouTube Data API v3 — resumable upload, token refresh
-├── scripts/
-│   ├── test_pipeline.py         # Manual pipeline test with 8 CLI flags
-│   └── yt_oauth_setup.py        # OAuth token exchange helper
-├── data/
-│   ├── reels.txt                # 546 unused reel URLs (git-tracked)
-│   └── reels_used.txt           # Consumed URLs with timestamps (git-tracked)
-├── tests/                       # 61 tests across 5 test files
-├── Dockerfile                   # python:3.13-slim + FFmpeg
-└── railway.json                 # Docker builder config
+📦 ytbe
+├── 🐍 main.py                      # Entry point, scheduler, health server
+├── 📁 config/
+│   └── ⚙️ settings.py              # Env var loader & validation
+├── 📁 tracker/
+│   ├── 🗄️ db.py                    # SQLite queue (WAL, BEGIN IMMEDIATE)
+│   └── 📜 reel_url_store.py        # File-based URL queue
+├── 📁 modules/
+│   ├── 📥 ig_downloader.py         # Anonymous Instagram downloader
+│   ├── 🎬 video_processor.py       # FFmpeg trim/scale/pad
+│   ├── 🤖 caption_generator.py     # AI captions via Kilo Gateway
+│   └── 📤 yt_uploader.py           # YouTube Data API v3 uploader
+├── 📁 scripts/
+│   ├── 🧪 test_pipeline.py         # Manual pipeline tester (8 flags)
+│   └── 🔑 yt_oauth_setup.py        # OAuth token exchange
+├── 📁 data/
+│   ├── 📄 reels.txt                # 546 unused reel URLs (git)
+│   └── 📄 reels_used.txt           # Consumed URLs (git)
+├── 📁 tests/                       # 61 tests across 5 files
+├── 🐳 Dockerfile                   # python:3.13-slim + FFmpeg
+└── 📋 railway.json                 # Docker builder config
 ```
+
+---
 
 ## Required Environment Variables
 
@@ -61,34 +102,67 @@ On container restart, if `reels_used.txt` is empty but the DB has entries (user 
 | `YT_REFRESH_TOKEN` | YouTube OAuth 2.0 refresh token |
 | `DATA_DIR` | Persistent volume path (default: `/data`) |
 
-Optional: `IG_USERNAME`, `IG_PASSWORD`, `IG_TARGET` (not needed for anonymous download mode), `CRON_HOUR`, `CRON_MINUTE`, `PORT`.
+**Optional:** `IG_USERNAME`, `IG_PASSWORD`, `IG_TARGET` (not needed for anonymous download mode), `CRON_HOUR`, `CRON_MINUTE`, `PORT`.
+
+---
 
 ## Deployment (Railway)
 
-1. Fork/push this repo
-2. Set the 5 required env vars in Railway dashboard
-3. Add a persistent volume at `/data` (for queue.db, videos, logs)
-4. Deploy via Dockerfile (handled by `railway.json`)
+```bash
+# 1. Push repo to GitHub
+git push origin main
 
-The bot starts immediately, schedules the first pipeline run for 07:30 IST, and listens on port 8080 for Railway health checks.
+# 2. In Railway dashboard:
+#    - New Project → Deploy from GitHub
+#    - Add 5 env vars (see above)
+#    - Add persistent volume → mount at /data
+#    - Deploy — Dockerfile auto-detected
+```
+
+The bot starts, schedules the first run for next `07:30 IST`, and listens on `:8080` for health checks. Zero manual effort after deploy.
+
+---
 
 ## Local Development
 
 ```bash
+# Install dependencies
 pip install -r requirements.txt
-# set env vars in .env
+
+# Configure (set in .env or export)
+export KILO_API_KEY=...
+export YT_CLIENT_ID=...
+export YT_CLIENT_SECRET=...
+export YT_REFRESH_TOKEN=...
+
+# Run the full bot
 python main.py
-# or test a single pipeline step:
+
+# Test individual stages
 python scripts/test_pipeline.py --download
 python scripts/test_pipeline.py --upload-one
+
+# Generate OAuth tokens
 python scripts/yt_oauth_setup.py --client-id YOUR_ID --client-secret YOUR_SECRET
 ```
 
+---
+
 ## Key Design Decisions
 
-- **File-based URL queue** → 546 pre-collected reel URLs sidestep Instagram's blocked API entirely. No login, no scraping, no browser needed on Railway.
-- **No Instagram credentials** → `instaloader.Post.from_shortcode()` resolves public video URLs anonymously. The 403 GraphQL warning is harmless.
-- **`-threads 2` on FFmpeg** → Railway free containers have ~512 MB RAM. Auto-detected 60 threads were OOM-killed.
-- **`BEGIN IMMEDIATE` on SQLite** → Prevents race conditions on concurrent APScheduler runs.
-- **`DATA_DIR=/data`** → All persistent state (queue.db, videos, logs) lives on the Railway volume, survives container restarts.
-- **Self-heal** → On git restore (which resets `reels.txt`), the pipeline detects a stale DB and clears it automatically.
+| Decision | Rationale |
+|----------|-----------|
+| **File-based URL queue** | 546 pre-collected URLs sidestep Instagram's blocked API — no login, no scraping on Railway |
+| **Anonymous download** | `instaloader.Post.from_shortcode()` resolves public video URLs without credentials |
+| **`-threads 2` FFmpeg** | Railway free containers (~512 MB RAM) were OOM-killed by 60 auto-detected x264 threads |
+| **`BEGIN IMMEDIATE` SQLite** | Prevents race conditions on concurrent APScheduler runs |
+| **`DATA_DIR=/data`** | All state on Railway persistent volume — survives restarts |
+| **Self-heal** | On git restore, detects stale DB and clears it automatically |
+
+---
+
+<p align="center">
+  <sub>Built with Python 3.13 · APScheduler · FFmpeg · Kilo Gateway · YouTube Data API v3</sub>
+  <br>
+  <sub>Runs on <a href="https://railway.app">Railway</a> free tier — ₹0 infra cost</sub>
+</p>
