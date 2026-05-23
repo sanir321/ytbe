@@ -2,7 +2,7 @@
 """Instagram → YouTube Shorts automation bot.
 
 Entry point. Starts APScheduler, health server, and graceful shutdown handlers.
-Runs daily at 09:00 IST.
+Runs daily at 07:30 IST.
 """
 
 import atexit
@@ -74,6 +74,13 @@ def run_pipeline(settings) -> None:
         logger.info("Pipeline run started")
 
         db_path = settings.data_dir / "queue.db"
+
+        if os.getenv("RESET_QUEUE", "").lower() in ("true", "1"):
+            if db_path.exists():
+                db_path.unlink()
+                logger.info("RESET_QUEUE=true — deleted queue.db")
+            os.environ.pop("RESET_QUEUE", None)
+
         db = QueueDB(db_path)
 
         # --- Step 1: Refill queue if running low ---
