@@ -1,0 +1,19 @@
+# Instagram scraping
+instaloader>=4.11,<5.0
+
+# AI caption generation (OpenAI-compatible -> Kilo Gateway)
+openai>=1.0.0,<2.0.0
+
+# YouTube upload
+google-api-python-client>=2.150.0,<3.0.0
+google-auth-oauthlib>=1.2.0,<2.0.0
+google-auth-httplib2>=0.2.0,<1.0.0
+
+# Scheduling
+APScheduler>=3.10.0,<4.0.0
+
+# HTTP
+requests>=2.31.0,<3.0.0
+
+# Config
+python-dotenv>=1.0.0,<2.0.0

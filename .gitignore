@@ -1,0 +1,55 @@
+# Secrets
+.env
+client_secret_*.json
+
+# Videos
+videos/
+*.mp4
+*.mov
+*.avi
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Railway persistent volume (local test)
+data/
+
+# Env reference
+env.md
+
+# opencode agent config
+.opencode/
+AGENTS.md
+
+# Test cache
+.pytest_cache/
+
+# Planning files
+PLAN.md
+project.md
+reel_urls.txt
