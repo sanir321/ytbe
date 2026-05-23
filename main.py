@@ -222,6 +222,7 @@ def _start_health_server(port: int) -> None:
     """Start a minimal HTTP server for Railway health checks."""
     import http.server
     import socketserver
+    import socket
 
     class HealthHandler(http.server.BaseHTTPRequestHandler):
         def do_GET(self) -> None:
@@ -231,14 +232,20 @@ def _start_health_server(port: int) -> None:
             self.wfile.write(b'{"status":"ok","bot":"yt-shorts-bot"}')
 
         def log_message(self, *_) -> None:
-            pass  # silence health check logs
+            pass
+
+    class ReusableTCPServer(socketserver.TCPServer):
+        allow_reuse_address = True
+        allow_reuse_port = True
 
     try:
-        server = socketserver.TCPServer(("0.0.0.0", port), HealthHandler)
+        server = ReusableTCPServer(("0.0.0.0", port), HealthHandler)
+        server.timeout = 1
         logger.info("Health server listening on port %d", port)
-        server.serve_forever()
+        while True:
+            server.handle_request()
     except Exception as e:
-        logger.warning("Health server failed to start: %s", e)
+        logger.warning("Health server error: %s", e)
 
 
 # ------------------------------------------------------------------
