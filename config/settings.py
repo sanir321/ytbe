@@ -1,7 +1,7 @@
 """Application configuration — loads & validates all env vars at startup."""
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -35,12 +35,12 @@ class Settings:
     # Kilo base URL (default after all required fields)
     kilo_base_url: str = "https://api.kilo.ai/api/gateway"
 
-    # Paths (defaults after all required fields)
+    # Paths — video & log dirs are derived from data_dir in __post_init__
     data_dir: Path = PROJECT_ROOT / "data"
-    videos_raw_dir: Path = PROJECT_ROOT / "videos" / "raw"
-    videos_processed_dir: Path = PROJECT_ROOT / "videos" / "processed"
-    log_dir: Path = PROJECT_ROOT / "logs"
-    log_file: Path = PROJECT_ROOT / "logs" / "bot.log"
+    videos_raw_dir: Path = field(init=False)
+    videos_processed_dir: Path = field(init=False)
+    log_dir: Path = field(init=False)
+    log_file: Path = field(init=False)
 
     # Scheduling
     cron_hour: int = 9
@@ -58,7 +58,11 @@ class Settings:
     port: int = 8080
 
     def __post_init__(self) -> None:
-        """Ensure all data directories exist."""
+        """Derive paths from data_dir and ensure all directories exist."""
+        self.videos_raw_dir = self.data_dir / "videos" / "raw"
+        self.videos_processed_dir = self.data_dir / "videos" / "processed"
+        self.log_dir = self.data_dir / "logs"
+        self.log_file = self.data_dir / "logs" / "bot.log"
         for d in [self.videos_raw_dir, self.videos_processed_dir, self.log_dir]:
             d.mkdir(parents=True, exist_ok=True)
 

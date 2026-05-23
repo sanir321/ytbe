@@ -82,6 +82,8 @@ class VideoProcessor:
         input_path = Path(input_path)
         output_path = Path(output_path)
 
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
         if not input_path.exists():
             logger.error("Input file not found: %s", input_path)
             return False
