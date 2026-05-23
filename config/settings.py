@@ -43,8 +43,8 @@ class Settings:
     log_file: Path = field(init=False)
 
     # Scheduling
-    cron_hour: int = 9
-    cron_minute: int = 0
+    cron_hour: int = 7
+    cron_minute: int = 30
     cron_timezone: str = "Asia/Kolkata"
 
     # Limits
