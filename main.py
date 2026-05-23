@@ -164,7 +164,6 @@ def run_pipeline(settings) -> None:
                         title=title,
                         description=desc,
                         tags=tags,
-                        privacy=privacy,
                     )
                     if video_id:
                         db.update_status(reel["id"], "posted", yt_video_id=video_id)
@@ -331,3 +330,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
