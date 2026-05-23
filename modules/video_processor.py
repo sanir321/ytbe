@@ -141,7 +141,10 @@ class VideoProcessor:
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
             if result.returncode != 0:
-                logger.error("FFmpeg error:\n%s\n%s", result.stderr, result.stdout)
+                stderr_tail = (result.stderr or "")[-1500:]
+                stdout_tail = (result.stdout or "")[-500:]
+                logger.error("FFmpeg exited with code %d\nstderr tail:\n%s\nstdout tail:\n%s",
+                             result.returncode, stderr_tail, stdout_tail)
                 return False
             logger.info("Processed: %s → %s", input_path.name, output_path.name)
             return True
