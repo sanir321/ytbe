@@ -343,10 +343,12 @@ def main() -> None:
     logger.info("Scheduler started — next run at %02d:%02d %s",
                 settings.cron_hour, settings.cron_minute, settings.cron_timezone)
 
-    # Run pipeline immediately on first deploy (safe: dupes are skipped,
-    # stale queues are reset, count_active() excludes posted/failed)
-    t = threading.Thread(target=run_pipeline, args=[settings], daemon=True)
-    t.start()
+    # Run pipeline on first deploy only (DB empty)
+    db_path = settings.data_dir / "queue.db"
+    if not db_path.exists():
+        logger.info("Fresh deploy — running pipeline immediately")
+        t = threading.Thread(target=run_pipeline, args=[settings], daemon=True)
+        t.start()
 
     # Keep main thread alive
     try:
