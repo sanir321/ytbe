@@ -225,18 +225,27 @@ def _cleanup_videos(settings, db) -> None:
 # ------------------------------------------------------------------
 # Health server (Railway requires HTTP listener)
 # ------------------------------------------------------------------
-def _start_health_server(port: int) -> None:
-    """Start a minimal HTTP server for Railway health checks."""
+def _start_health_server(port: int, settings=None, trigger_fn=None) -> None:
+    """Start a minimal HTTP server for Railway health checks + /trigger."""
     import http.server
     import socketserver
-    import socket
+    import json as json_module
 
     class HealthHandler(http.server.BaseHTTPRequestHandler):
         def do_GET(self) -> None:
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(b'{"status":"ok","bot":"yt-shorts-bot"}')
+            if self.path == "/trigger" and trigger_fn:
+                self.send_response(202)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                import threading
+                t = threading.Thread(target=trigger_fn, args=[settings], daemon=True)
+                t.start()
+                self.wfile.write(json_module.dumps({"status": "triggered"}).encode())
+            else:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"status":"ok","bot":"yt-shorts-bot"}')
 
         def log_message(self, *_) -> None:
             pass
@@ -307,11 +316,11 @@ def main() -> None:
     signal.signal(signal.SIGINT, _handle_signal)
     atexit.register(release_lock)
 
-    # Start health server in background
+    # Start health server in background (serves /trigger too)
     import threading
     health_thread = threading.Thread(
         target=_start_health_server,
-        args=(settings.port,),
+        args=(settings.port, settings, run_pipeline),
         daemon=True,
     )
     health_thread.start()
