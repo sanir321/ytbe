@@ -97,15 +97,24 @@ class VideoProcessor:
 
         if duration <= self.settings.max_video_duration:
             logger.info(
-                "Video already %.1fs (≤ %ds) — copying without re-encode",
+                "Video already %.1fs (≤ %ds) — re-encoding for HD compatibility",
                 duration,
                 self.settings.max_video_duration,
             )
-            # Just copy with metadata fix for streaming
             cmd = [
                 FFMPEG_BIN, "-y",
                 "-i", str(input_path),
-                "-c", "copy",
+                "-c:v", "libx264",
+                "-profile:v", "high",
+                "-level:v", "4.2",
+                "-pix_fmt", "yuv420p",
+                "-threads", "2",
+                "-crf", "18",
+                "-preset", "slow",
+                "-maxrate", "20M",
+                "-bufsize", "40M",
+                "-c:a", "aac",
+                "-b:a", "192k",
                 "-movflags", "+faststart",
                 str(output_path),
             ]
@@ -129,11 +138,16 @@ class VideoProcessor:
                 "-vf", vf,
                 "-t", str(max_dur),
                 "-c:v", "libx264",
+                "-profile:v", "high",
+                "-level:v", "4.2",
+                "-pix_fmt", "yuv420p",
                 "-threads", "2",
-                "-crf", "23",
-                "-preset", "fast",
+                "-crf", "18",
+                "-preset", "slow",
+                "-maxrate", "20M",
+                "-bufsize", "40M",
                 "-c:a", "aac",
-                "-b:a", "128k",
+                "-b:a", "192k",
                 "-movflags", "+faststart",
                 str(output_path),
             ]
