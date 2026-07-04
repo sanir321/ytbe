@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Tests for modules/video_processor.py — FFmpeg wrapper for Shorts conversion."""
+"""Tests for modules/video_processor.py - FFmpeg wrapper for Shorts conversion."""
 import json
 import logging
 import subprocess
 from pathlib import Path
 
 import pytest
-from modules.video_processor import VideoProcessor, VideoProcessorError
+from modules.video_processor import VideoProcessor
+from config.settings import PipelineError
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +21,6 @@ def ffmpeg_available():
         return False
 
 
-def pytest_configure():
-    # Only print once at module load
-    pass
-
-
 class TestCheckFFmpeg:
     def test_ffmpeg_available_or_skip(self):
         """FFmpeg should be available. Skip cleanly if not."""
@@ -34,7 +30,7 @@ class TestCheckFFmpeg:
 
     def test_ffmpeg_not_found_raises(self, mocker):
         mocker.patch("subprocess.run", side_effect=FileNotFoundError("ffmpeg not found"))
-        with pytest.raises(VideoProcessorError, match="FFmpeg not found"):
+        with pytest.raises(PipelineError, match="FFmpeg not found"):
             VideoProcessor._check_ffmpeg()
 
 
@@ -107,7 +103,7 @@ def _create_long_video(tmp_path):
 
 
 class TestProcessVideo:
-    def test_process_short_video_uses_copy_fastpath(self, settings, tmp_path, mocker):
+    def test_process_short_video_reencodes(self, settings, tmp_path, mocker):
         if not ffmpeg_available():
             pytest.skip("FFmpeg not available")
         short_video = _create_short_video(tmp_path)
@@ -121,9 +117,8 @@ class TestProcessVideo:
         result = proc.process_video(short_video, output)
         assert result is True
         call_args = subprocess.run.call_args[0][0]
-        assert "-c" in call_args
-        copy_idx = call_args.index("-c")
-        assert call_args[copy_idx + 1] == "copy"
+        assert "-c:v" in call_args
+        assert "libx264" in call_args
 
     def test_process_long_video_trims(self, settings, tmp_path):
         if not ffmpeg_available():

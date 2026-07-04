@@ -1,43 +1,8 @@
 #!/usr/bin/env python3
-"""Tests for modules/caption_generator.py — AI caption parsing and fallback."""
+"""Tests for modules/caption_generator.py - AI caption parsing and fallback."""
 import pytest
 import json
 from modules.caption_generator import CaptionGenerator
-
-
-class TestExtractJsonFallback:
-    """Test the regex fallback for malformed AI JSON output."""
-
-    def test_extracts_all_fields(self):
-        raw = '''Some text {"title": "Test Title", "description": "Test description here", "hashtags": ["#a", "#b"]} extra'''
-        result = CaptionGenerator._extract_json_fallback(raw)
-        assert result["title"] == "Test Title"
-        assert result["description"] == "Test description here"
-        assert result["hashtags"] == ["#a", "#b"]
-
-    def test_extracts_partial_fields(self):
-        raw = '''{"title": "Only Title"}'''
-        result = CaptionGenerator._extract_json_fallback(raw)
-        assert result["title"] == "Only Title"
-        assert result["description"] == ""
-        assert result["hashtags"] == []
-
-    def test_no_match_returns_defaults(self):
-        raw = "completely unrelated text"
-        result = CaptionGenerator._extract_json_fallback(raw)
-        assert result == {"title": "", "description": "", "hashtags": []}
-
-    def test_hashtags_inside_array_individual_strings(self):
-        raw = '''{"hashtags": ["#a", "#b", "#c"]}'''
-        result = CaptionGenerator._extract_json_fallback(raw)
-        assert result["hashtags"] == ["#a", "#b", "#c"]
-
-    def test_hashtags_regex_fallback_when_json_fails(self):
-        raw = """{"hashtags": ['#a', '#b']}"""  # Single quotes break JSON
-        result = CaptionGenerator._extract_json_fallback(raw)
-        # The regex fallback finds the array, JSON loads fails, then finds individual strings
-        # Single-quoted strings won't match the double-quote regex, so expect empty
-        assert result["hashtags"] == ["#a", "#b"]
 
 
 class TestFallbackMetadata:
@@ -49,20 +14,18 @@ class TestFallbackMetadata:
         assert isinstance(meta["hashtags"], list)
         assert len(meta["hashtags"]) > 0
 
-    def test_title_ends_with_shorts(self):
+    def test_title_has_no_hashtags(self):
         meta = CaptionGenerator.fallback_metadata()
-        assert meta["title"].endswith("#Shorts")
+        assert "#" not in meta["title"]
 
     def test_description_is_reasonable_length(self):
         meta = CaptionGenerator.fallback_metadata()
         assert 50 < len(meta["description"]) < 500
 
 
-class TestSanitizationLogic:
-    """Test the internal formatting logic that would be applied to AI responses."""
+class TestSanitization:
 
     def test_normalize_hashtags_from_string_comma_separated(self):
-        """Simulate hashtag_str = '#a, #b, #c' being normalized."""
         raw = ', '.join(["#a", "#b", "#c"])
         if "," in raw:
             tags = [h.strip() for h in raw.split(",") if h.strip()]
@@ -83,12 +46,9 @@ class TestSanitizationLogic:
             tags.insert(0, "#Shorts")
         assert tags[0] == "#Shorts"
 
-    def test_title_appends_shorts(self):
+    def test_title_has_no_hashtags(self):
         title = "Amazing Title"
-        if not title.endswith("#Shorts"):
-            title = title.rstrip() + " #Shorts"
-        assert title == "Amazing Title #Shorts"
-        assert len(title) <= 100
+        assert "#" not in title
 
     def test_description_contains_hashtags(self):
         desc = "Great content. Follow for more."

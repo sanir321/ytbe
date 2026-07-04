@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Full pipeline integration test — download, process, caption (mock + real)."""
+"""Full pipeline integration test - download, process, caption (mock + real)."""
 import json
 import logging
 import os
@@ -31,9 +31,6 @@ def _create_synthetic_video(tmp_path):
         capture_output=True, check=True,
     )
     return path
-
-
-SYSTEM_ENV = {k: v for k, v in os.environ.items()}
 
 
 @pytest.fixture(autouse=True)
@@ -90,12 +87,12 @@ class TestDownloadStage:
         downloader = IGDownloader(settings, db)
         shortcode = downloader.download_next_reel()
 
-        # May succeed or fail depending on Instagram availability — either is OK
+        # May succeed or fail depending on Instagram availability - either is OK
         if shortcode:
             assert db.shortcode_exists(shortcode)
             assert db.count_by_status("downloaded") == 1
         else:
-            pytest.skip("Instagram unreachable — download skipped (this is fine)")
+            pytest.skip("Instagram unreachable - download skipped (this is fine)")
 
     def test_download_returns_none_when_queue_empty(self, settings, db, tmp_path, monkeypatch):
         """Empty reels.txt should return None."""
@@ -122,7 +119,7 @@ class TestProcessStage:
 
         from modules.video_processor import VideoProcessor
         processor = VideoProcessor(settings)
-        reel = db.get_next_pending()
+        reel = db.get_next_by_status("downloaded")
         assert reel is not None
 
         output = settings.videos_processed_dir / f"{shortcode}.mp4"
@@ -143,7 +140,7 @@ class TestProcessStage:
 
         from modules.video_processor import VideoProcessor
         processor = VideoProcessor(settings)
-        reel = db.get_next_pending()
+        reel = db.get_next_by_status("downloaded")
         output = settings.videos_processed_dir / "nonexistent.mp4"
         ok = processor.process_video(reel["raw_path"], output)
         assert ok is False
@@ -163,7 +160,7 @@ class TestCaptionStage:
 
         from modules.caption_generator import CaptionGenerator
         generator = CaptionGenerator(settings)
-        reel = db.get_next_processed()
+        reel = db.get_next_by_status("processed")
         assert reel is not None
 
         meta = generator.generate(reel["ig_caption"] or "")
@@ -208,7 +205,7 @@ class TestFullPipeline:
         # 2. Process
         from modules.video_processor import VideoProcessor
         processor = VideoProcessor(settings)
-        reel = db.get_next_pending()
+        reel = db.get_next_by_status("downloaded")
         assert reel is not None
         output = settings.videos_processed_dir / f"{shortcode}.mp4"
         ok = processor.process_video(reel["raw_path"], output)
@@ -219,7 +216,7 @@ class TestFullPipeline:
         # 3. Caption
         from modules.caption_generator import CaptionGenerator
         generator = CaptionGenerator(settings)
-        reel = db.get_next_processed()
+        reel = db.get_next_by_status("processed")
         assert reel is not None
         meta = generator.generate(reel["ig_caption"] or "")
         if meta is None:
@@ -233,14 +230,14 @@ class TestFullPipeline:
         assert db.count_by_status("caption_ready") == 1
 
         # 4. Verify metadata is well-formed
-        reel = db.get_next_caption_ready()
+        reel = db.get_next_by_status("caption_ready")
         assert reel is not None
         assert reel["yt_title"].endswith("#Shorts")
         assert len(reel["yt_title"]) <= 100
         assert len(reel["yt_description"]) <= 5000
         assert "#Shorts" in (reel["yt_tags"] or "")
 
-        logger.info("E2E pipeline passed for %s — title: %s", shortcode, meta["title"])
+        logger.info("E2E pipeline passed for %s - title: %s", shortcode, meta["title"])
 
     def test_pipeline_with_multiple_reels(self, settings, db, tmp_path):
         if not ffmpeg_available():
@@ -261,7 +258,7 @@ class TestFullPipeline:
             row = db._fetchone("SELECT * FROM queue WHERE ig_shortcode=?", (sc,))
             db.update_status(row["id"], "downloaded", raw_path=str(synthetic_video))
 
-            reel = db.get_next_pending()
+            reel = db.get_next_by_status("downloaded")
             assert reel is not None
             output = settings.videos_processed_dir / f"{sc}.mp4"
             ok = processor.process_video(reel["raw_path"], output)
@@ -308,7 +305,7 @@ class TestURLQueueIntegration:
         # Process it
         from modules.video_processor import VideoProcessor
         processor = VideoProcessor(settings)
-        reel = db.get_next_pending()
+        reel = db.get_next_by_status("downloaded")
         output = settings.videos_processed_dir / f"{sc1}.mp4"
         ok = processor.process_video(reel["raw_path"], output)
         assert ok is True

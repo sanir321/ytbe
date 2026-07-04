@@ -108,7 +108,7 @@ def _show_queue(db) -> None:
     logger.info("Queue contents (%d items):", len(rows))
     for row in rows:
         logger.info(
-            "  #%d [%s] %s — %s",
+            "  #%d [%s] %s - %s",
             row["id"],
             row["status"],
             row["ig_shortcode"],

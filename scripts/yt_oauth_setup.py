@@ -1,11 +1,21 @@
+"""Generate a YouTube OAuth refresh token and save it to .env."""
+
 import json
 import os
 import webbrowser
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse, parse_qs
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-CLIENT_SECRET_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-    "client_secret_1019500787445-7hk1dg0f9ecq9pu4l2k820hdnujdrh5a.apps.googleusercontent.com.json")
+import requests
+
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/yt-analytics.readonly",
+]
+CLIENT_SECRET_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "client_secret_1019500787445-7hk1dg0f9ecq9pu4l2k820hdnujdrh5a.apps.googleusercontent.com.json",
+)
 
 with open(CLIENT_SECRET_FILE) as f:
     config = json.load(f)["installed"]
@@ -34,17 +44,13 @@ print("4. Paste it below\n")
 
 redirect_result = input("Paste the full redirect URL: ").strip()
 
-from urllib.parse import urlparse, parse_qs
 code = parse_qs(urlparse(redirect_result).query).get("code", [None])[0]
-
 if not code:
     code = parse_qs(urlparse("?" + redirect_result.split("?")[-1]).query).get("code", [None])[0]
-
 if not code:
     print("Could not extract authorization code from URL")
     exit(1)
 
-import requests
 resp = requests.post(config["token_uri"], data={
     "code": code,
     "client_id": CLIENT_ID,

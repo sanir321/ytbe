@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for tracker/db.py — SQLite queue management."""
+"""Tests for tracker/db.py - SQLite queue management."""
 import pytest
 from pathlib import Path
 from tracker.db import QueueDB
@@ -29,7 +29,7 @@ class TestInit:
 class TestAddReel:
     def test_adds_reel(self, db):
         result = db.add_reel("shortcode1", "Test caption")
-        assert result is True
+        assert isinstance(result, int)
         assert db.count_total() == 1
 
     def test_status_defaults_to_downloaded(self, db):
@@ -37,9 +37,9 @@ class TestAddReel:
         row = db._fetchone("SELECT status FROM queue WHERE ig_shortcode = ?", ("sc01",))
         assert row["status"] == "downloaded"
 
-    def test_duplicate_shortcode_returns_false(self, db):
+    def test_duplicate_shortcode_returns_none(self, db):
         db.add_reel("unique_sc")
-        assert db.add_reel("unique_sc") is False
+        assert db.add_reel("unique_sc") is None
         assert db.count_total() == 1
 
     def test_caption_is_stored(self, db):
@@ -51,17 +51,17 @@ class TestAddReel:
 class TestStatusFlow:
     def test_full_lifecycle(self, db):
         db.add_reel("sc_lifecycle", "Original caption")
-        reel = db.get_next_pending()
+        reel = db.get_next_by_status("downloaded")
         assert reel is not None
         assert reel["ig_shortcode"] == "sc_lifecycle"
 
         db.update_status(reel["id"], "processed", processed_path="/tmp/processed.mp4")
-        reel = db.get_next_processed()
+        reel = db.get_next_by_status("processed")
         assert reel is not None
         assert reel["ig_shortcode"] == "sc_lifecycle"
 
         db.update_status(reel["id"], "caption_ready", yt_title="Test Title", yt_description="Test Desc")
-        reel = db.get_next_caption_ready()
+        reel = db.get_next_by_status("caption_ready")
         assert reel is not None
         assert reel["yt_title"] == "Test Title"
 
@@ -69,30 +69,30 @@ class TestStatusFlow:
         assert db.count_by_status("posted") == 1
         assert db.count_by_status("pending") == 0
 
-    def test_get_next_pending_returns_oldest_first(self, db):
+    def test_get_next_by_status_returns_oldest_first(self, db):
         db.add_reel("first")
         db.add_reel("second")
         db.add_reel("third")
-        reel = db.get_next_pending()
+        reel = db.get_next_by_status("downloaded")
         assert reel["ig_shortcode"] == "first"
 
-    def test_skips_non_pending(self, db):
+    def test_skips_non_matching_status(self, db):
         db.add_reel("downloaded_reel")
         row = db._fetchone("SELECT * FROM queue WHERE ig_shortcode='downloaded_reel'")
         db.update_status(row["id"], "posted", yt_video_id="yay")
-        assert db.get_next_pending() is None
+        assert db.get_next_by_status("downloaded") is None
 
     def test_caption_ready_skips_without_title(self, db):
         db.add_reel("sc_no_title")
         row = db._fetchone("SELECT * FROM queue WHERE ig_shortcode='sc_no_title'")
         db.update_status(row["id"], "caption_ready")  # No yt_title
-        assert db.get_next_caption_ready() is not None
+        assert db.get_next_by_status("caption_ready") is not None
 
 
 class TestUpdateStatus:
     def test_metadata_update(self, db):
         db.add_reel("sc_meta")
-        reel = db.get_next_pending()
+        reel = db.get_next_by_status("downloaded")
         db.update_status(
             reel["id"], "processed",
             raw_path="/raw.mp4",
@@ -159,13 +159,13 @@ class TestGetRecent:
 
 
 class TestEdgeCases:
-    def test_empty_get_next_pending(self, tmp_path):
+    def test_empty_get_next_by_status(self, tmp_path):
         db = QueueDB(tmp_path / "empty.db")
-        assert db.get_next_pending() is None
+        assert db.get_next_by_status("downloaded") is None
 
     def test_update_nonexistent_reel(self, db):
         db.update_status(999, "failed", error_msg="Not found")
-        assert db.count_by_status("failed") == 0  # No error — just no-op
+        assert db.count_by_status("failed") == 0  # No error - just no-op
 
     def test_very_long_caption(self, db):
         long_caption = "x" * 10000

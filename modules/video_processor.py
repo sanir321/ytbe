@@ -1,4 +1,4 @@
-"""Video processing module — FFmpeg wrapper for YouTube Shorts conversion."""
+"""Video processing module - FFmpeg wrapper for YouTube Shorts conversion."""
 
 import json
 import logging
@@ -7,16 +7,12 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from config.settings import Settings
+from config.settings import Settings, PipelineError
 
 logger = logging.getLogger(__name__)
 
 FFMPEG_BIN = "ffmpeg"
 FFPROBE_BIN = "ffprobe"
-
-
-class VideoProcessorError(Exception):
-    """Base exception for video processing failures."""
 
 
 class VideoProcessor:
@@ -39,7 +35,7 @@ class VideoProcessor:
                 check=True,
             )
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
-            raise VideoProcessorError(
+            raise PipelineError(
                 "FFmpeg not found. Install it: https://ffmpeg.org/"
             ) from e
 
@@ -88,69 +84,46 @@ class VideoProcessor:
             logger.error("Input file not found: %s", input_path)
             return False
 
-        # Check duration — skip processing if already ≤ 60s
+        # Check duration - skip processing if already ≤ 60s
         try:
             duration = self.get_duration(input_path)
         except Exception as e:
             logger.warning("Could not determine duration: %s", e)
             duration = 999  # process anyway
 
-        if duration <= self.settings.max_video_duration:
-            logger.info(
-                "Video already %.1fs (≤ %ds) — re-encoding for HD compatibility",
-                duration,
-                self.settings.max_video_duration,
-            )
-            cmd = [
-                FFMPEG_BIN, "-y",
-                "-i", str(input_path),
-                "-c:v", "libx264",
-                "-profile:v", "high",
-                "-level:v", "4.2",
-                "-pix_fmt", "yuv420p",
-                "-threads", "2",
-                "-crf", "18",
-                "-preset", "slow",
-                "-maxrate", "20M",
-                "-bufsize", "40M",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-movflags", "+faststart",
-                str(output_path),
-            ]
-        else:
-            # Scale, pad, and trim
-            target_w = self.settings.target_width
-            target_h = self.settings.target_height
-            max_dur = self.settings.max_video_duration
+        target_w = self.settings.target_width
+        target_h = self.settings.target_height
+        max_dur = self.settings.max_video_duration
 
-            # Scale to fit 1080x1920, pad with black bars
+        cmd = [
+            FFMPEG_BIN, "-y",
+            "-i", str(input_path),
+        ]
+
+        if duration > max_dur:
             vf = (
                 f"scale={target_w}:{target_h}:"
                 f"force_original_aspect_ratio=decrease,"
                 f"pad={target_w}:{target_h}:"
                 f"(ow-iw)/2:(oh-ih)/2:black"
             )
+            cmd.extend(["-t", str(max_dur), "-vf", vf])
 
-            cmd = [
-                FFMPEG_BIN, "-y",
-                "-i", str(input_path),
-                "-vf", vf,
-                "-t", str(max_dur),
-                "-c:v", "libx264",
-                "-profile:v", "high",
-                "-level:v", "4.2",
-                "-pix_fmt", "yuv420p",
-                "-threads", "2",
-                "-crf", "18",
-                "-preset", "slow",
-                "-maxrate", "20M",
-                "-bufsize", "40M",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-movflags", "+faststart",
-                str(output_path),
-            ]
+        cmd.extend([
+            "-c:v", "libx264",
+            "-profile:v", "high",
+            "-level:v", "4.2",
+            "-pix_fmt", "yuv420p",
+            "-threads", "2",
+            "-crf", "16",
+            "-preset", "slow",
+            "-maxrate", "30M",
+            "-bufsize", "60M",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-movflags", "+faststart",
+            str(output_path),
+        ])
 
         logger.info("FFmpeg: %s", " ".join(str(c) for c in cmd))
         try:
@@ -161,7 +134,7 @@ class VideoProcessor:
                 logger.error("FFmpeg exited with code %d\nstderr tail:\n%s\nstdout tail:\n%s",
                              result.returncode, stderr_tail, stdout_tail)
                 return False
-            logger.info("Processed: %s → %s", input_path.name, output_path.name)
+            logger.info("Processed: %s -> %s", input_path.name, output_path.name)
             return True
         except subprocess.TimeoutExpired:
             logger.error("FFmpeg timed out after 300s for %s", input_path.name)

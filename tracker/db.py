@@ -1,4 +1,4 @@
-"""SQLite queue — tracks every reel through the pipeline.
+"""SQLite queue - tracks every reel through the pipeline.
 
 Schema matches the PRD with one addition: retry_count for failed items.
 Uses BEGIN IMMEDIATE to prevent race conditions on concurrent access.
@@ -35,6 +35,9 @@ class QueueDB:
                 yt_title        TEXT,
                 yt_description  TEXT,
                 yt_tags         TEXT,
+                yt_title_ch2    TEXT,
+                yt_description_ch2 TEXT,
+                yt_tags_ch2     TEXT,
                 yt_video_id     TEXT,
                 status          TEXT    NOT NULL DEFAULT 'pending',
                 retry_count     INTEGER NOT NULL DEFAULT 0,
@@ -43,6 +46,17 @@ class QueueDB:
                 posted_at       TEXT
             );
         """)
+        # Migration: add ch2 columns for existing databases
+        existing_cols = {col[1] for col in conn.execute("PRAGMA table_info(queue);")}
+        migration_cols = {
+            "yt_title_ch2": "TEXT",
+            "yt_description_ch2": "TEXT",
+            "yt_tags_ch2": "TEXT",
+            "yt_video_id_ch2": "TEXT",
+        }
+        for col_name, col_type in migration_cols.items():
+            if col_name not in existing_cols:
+                conn.execute(f"ALTER TABLE queue ADD COLUMN {col_name} {col_type};")
         conn.commit()
         conn.close()
 
@@ -80,82 +94,52 @@ class QueueDB:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def add_reel(self, shortcode: str, ig_caption: str = "") -> bool:
-        """Insert a new reel. Returns False if shortcode already exists."""
+    def add_reel(self, shortcode: str, ig_caption: str = "") -> int | None:
+        """Insert a new reel. Returns the row ID, or None if duplicate."""
         now = datetime.now(timezone.utc).isoformat()
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("BEGIN IMMEDIATE;")
         try:
-            self._execute(
+            cur = conn.execute(
                 "INSERT INTO queue (ig_shortcode, ig_caption, status, created_at) VALUES (?, ?, 'downloaded', ?);",
                 (shortcode, ig_caption, now),
             )
-            return True
+            conn.commit()
+            return cur.lastrowid
         except sqlite3.IntegrityError:
-            return False
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
 
-    def get_next_pending(self) -> Optional[dict]:
-        """Get the oldest downloaded reel ready for processing."""
+    def get_next_by_status(self, status: str) -> Optional[dict]:
+        """Get the oldest reel with a given status."""
         row = self._fetchone(
-            "SELECT * FROM queue WHERE status = 'downloaded' ORDER BY id ASC LIMIT 1;"
+            "SELECT * FROM queue WHERE status = ? ORDER BY id ASC LIMIT 1;", (status,)
         )
         return dict(row) if row else None
 
-    def get_next_processed(self) -> Optional[dict]:
-        """Get the oldest processed reel ready for caption generation."""
-        row = self._fetchone(
-            "SELECT * FROM queue WHERE status = 'processed' ORDER BY id ASC LIMIT 1;"
-        )
-        return dict(row) if row else None
-
-    def get_next_caption_ready(self) -> Optional[dict]:
-        """Get the oldest caption_ready reel ready for upload."""
-        row = self._fetchone(
-            "SELECT * FROM queue WHERE status = 'caption_ready' ORDER BY id ASC LIMIT 1;"
-        )
-        return dict(row) if row else None
-
-    def update_status(
-        self,
-        reel_id: int,
-        status: str,
-        *,
-        raw_path: str | None = None,
-        processed_path: str | None = None,
-        yt_title: str | None = None,
-        yt_description: str | None = None,
-        yt_tags: str | None = None,
-        yt_video_id: str | None = None,
-        error_msg: str | None = None,
-        retry_count: int | None = None,
-    ) -> None:
+    def update_status(self, reel_id: int, status: str, **kwargs) -> None:
         """Update a reel's status and optional metadata."""
         fields = ["status = ?"]
         params: list = [status]
+        set_posted_at = status in ("posted", "failed")
 
-        if raw_path is not None:
-            fields.append("raw_path = ?")
-            params.append(raw_path)
-        if processed_path is not None:
-            fields.append("processed_path = ?")
-            params.append(processed_path)
-        if yt_title is not None:
-            fields.append("yt_title = ?")
-            params.append(yt_title)
-        if yt_description is not None:
-            fields.append("yt_description = ?")
-            params.append(yt_description)
-        if yt_tags is not None:
-            fields.append("yt_tags = ?")
-            params.append(yt_tags)
-        if yt_video_id is not None:
-            fields.append("yt_video_id = ?")
-            params.append(yt_video_id)
-        if error_msg is not None:
-            fields.append("error_msg = ?")
-            params.append(error_msg)
-        if retry_count is not None:
-            fields.append("retry_count = ?")
-            params.append(retry_count)
-        if status in ("posted", "failed"):
+        col_map = {
+            "raw_path": "raw_path", "processed_path": "processed_path",
+            "yt_title": "yt_title", "yt_description": "yt_description",
+            "yt_tags": "yt_tags", "yt_title_ch2": "yt_title_ch2",
+            "yt_description_ch2": "yt_description_ch2", "yt_tags_ch2": "yt_tags_ch2",
+            "yt_video_id": "yt_video_id", "yt_video_id_ch2": "yt_video_id_ch2",
+            "error_msg": "error_msg", "retry_count": "retry_count",
+        }
+        for key, col in col_map.items():
+            val = kwargs.get(key)
+            if val is not None:
+                fields.append(f"{col} = ?")
+                params.append(val)
+
+        if set_posted_at:
             fields.append("posted_at = ?")
             params.append(datetime.now(timezone.utc).isoformat())
 
@@ -186,6 +170,9 @@ class QueueDB:
             "SELECT * FROM queue ORDER BY id DESC LIMIT ?;", (limit,)
         )
         return [dict(r) for r in rows]
+
+    def clear_all(self) -> None:
+        self._execute("DELETE FROM queue;")
 
     def shortcode_exists(self, shortcode: str) -> bool:
         row = self._fetchone(

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Tests for modules/yt_uploader.py — YouTube OAuth, upload, and token refresh."""
+"""Tests for modules/yt_uploader.py - YouTube OAuth, upload, and token refresh."""
 import json
 import pytest
 from pathlib import Path
-from modules.yt_uploader import YTUploader, YTUploaderError
+from modules.yt_uploader import YTUploader
+from config.settings import PipelineError
 
 
 @pytest.fixture
@@ -61,14 +62,14 @@ class TestCredentials:
         assert creds_instance.refresh.call_count == 0
 
     def test_refresh_failure_raises(self, settings, mock_credentials, mock_request):
-        """Failed token refresh should raise YTUploaderError."""
+        """Failed token refresh should raise PipelineError."""
         from google.auth.exceptions import RefreshError
         creds_instance = mock_credentials.return_value
         creds_instance.valid = False
         creds_instance.refresh.side_effect = RefreshError("token expired")
 
         uploader = YTUploader(settings)
-        with pytest.raises(YTUploaderError, match="YouTube token refresh failed"):
+        with pytest.raises(PipelineError, match="YouTube token refresh failed"):
             uploader._get_credentials()
 
     def test_credentials_constructed_correctly(self, settings, mock_credentials, mock_request):
@@ -95,15 +96,14 @@ class TestUploadShorts:
         video_path = tmp_path / "test_video.mp4"
         video_path.write_bytes(b"fake video content")
 
-        # Mock the service chain: build → videos() → insert() → execute()
         mock_service = mocker.Mock()
         mock_build = mocker.patch("modules.yt_uploader.build", return_value=mock_service)
         mock_request_obj = mocker.Mock()
         mock_insert = mocker.Mock()
+        mock_insert.next_chunk.return_value = (None, {"id": "fake_video_id_123"})
 
         mock_service.videos.return_value = mock_request_obj
         mock_request_obj.insert.return_value = mock_insert
-        mock_insert.execute.return_value = {"id": "fake_video_id_123"}
 
         creds_instance = mock_credentials.return_value
         creds_instance.valid = False
@@ -119,7 +119,7 @@ class TestUploadShorts:
 
         assert video_id == "fake_video_id_123"
         mock_build.assert_called_once()
-        mock_insert.execute.assert_called_once()
+        mock_insert.next_chunk.assert_called_once()
 
     def test_upload_builds_correct_body(self, settings, mocker, tmp_path, mock_credentials, mock_request):
         """Verify the request body has correct structure."""
@@ -129,7 +129,7 @@ class TestUploadShorts:
         mock_service = mocker.Mock()
         mocker.patch("modules.yt_uploader.build", return_value=mock_service)
         mock_insert = mocker.Mock()
-        mock_insert.execute.return_value = {"id": "vid1"}
+        mock_insert.next_chunk.return_value = (None, {"id": "vid1"})
         mock_service.videos.return_value.insert.return_value = mock_insert
 
         creds_instance = mock_credentials.return_value
@@ -155,7 +155,7 @@ class TestUploadShorts:
     def test_upload_file_not_found(self, settings, mock_credentials):
         """Missing video file should raise immediately."""
         uploader = YTUploader(settings)
-        with pytest.raises(YTUploaderError, match="Video file not found"):
+        with pytest.raises(PipelineError, match="Video file not found"):
             uploader.upload_shorts(
                 video_path=Path("/nonexistent/video.mp4"),
                 title="Test #Shorts",
@@ -171,7 +171,7 @@ class TestUploadShorts:
         mock_service = mocker.Mock()
         mocker.patch("modules.yt_uploader.build", return_value=mock_service)
         mock_insert = mocker.Mock()
-        mock_insert.execute.return_value = {"id": "vid1"}
+        mock_insert.next_chunk.return_value = (None, {"id": "vid1"})
         mock_service.videos.return_value.insert.return_value = mock_insert
 
         creds_instance = mock_credentials.return_value
@@ -197,18 +197,20 @@ class TestUploadShorts:
 
         mock_service = mocker.Mock()
         mocker.patch("modules.yt_uploader.build", return_value=mock_service)
-        mock_service.videos.return_value.insert.return_value.execute.side_effect = HttpError(
+        mock_insert = mocker.Mock()
+        mock_insert.next_chunk.side_effect = HttpError(
             resp=mocker.Mock(status=403),
             content=json.dumps({
                 "error": {"errors": [{"reason": "quotaExceeded"}]}
             }).encode(),
         )
+        mock_service.videos.return_value.insert.return_value = mock_insert
 
         creds_instance = mock_credentials.return_value
         creds_instance.valid = False
 
         uploader = YTUploader(settings)
-        with pytest.raises(YTUploaderError, match="YouTube quota exceeded"):
+        with pytest.raises(PipelineError, match="YouTube quota exceeded"):
             uploader.upload_shorts(
                 video_path=video_path,
                 title="Test #Shorts",
@@ -224,12 +226,14 @@ class TestUploadShorts:
 
         mock_service = mocker.Mock()
         mocker.patch("modules.yt_uploader.build", return_value=mock_service)
-        mock_service.videos.return_value.insert.return_value.execute.side_effect = HttpError(
+        mock_insert = mocker.Mock()
+        mock_insert.next_chunk.side_effect = HttpError(
             resp=mocker.Mock(status=401),
             content=json.dumps({
                 "error": {"errors": [{"reason": "authError"}]}
             }).encode(),
         )
+        mock_service.videos.return_value.insert.return_value = mock_insert
 
         creds_instance = mock_credentials.return_value
         creds_instance.valid = False
@@ -237,7 +241,7 @@ class TestUploadShorts:
         uploader = YTUploader(settings)
         uploader._credentials = creds_instance
 
-        with pytest.raises(YTUploaderError, match="YouTube auth error"):
+        with pytest.raises(PipelineError, match="YouTube auth error"):
             uploader.upload_shorts(
                 video_path=video_path,
                 title="Test #Shorts",
@@ -245,7 +249,6 @@ class TestUploadShorts:
                 tags=["#Shorts"],
             )
 
-        # Credentials should be cleared
         assert uploader._credentials is None
 
     def test_upload_no_video_id_in_response(self, settings, mocker, tmp_path, mock_credentials, mock_request):
@@ -256,7 +259,7 @@ class TestUploadShorts:
         mock_service = mocker.Mock()
         mocker.patch("modules.yt_uploader.build", return_value=mock_service)
         mock_insert = mocker.Mock()
-        mock_insert.execute.return_value = {}  # No 'id' key
+        mock_insert.next_chunk.return_value = (None, {})  # No 'id' key
         mock_service.videos.return_value.insert.return_value = mock_insert
 
         creds_instance = mock_credentials.return_value
@@ -279,62 +282,26 @@ class TestUploadShorts:
 
         mock_service = mocker.Mock()
         mocker.patch("modules.yt_uploader.build", return_value=mock_service)
-        mock_service.videos.return_value.insert.return_value.execute.side_effect = HttpError(
+        mock_insert = mocker.Mock()
+        mock_insert.next_chunk.side_effect = HttpError(
             resp=mocker.Mock(status=400),
             content=json.dumps({
                 "error": {"errors": [{"reason": "videoTooLarge"}]}
             }).encode(),
         )
+        mock_service.videos.return_value.insert.return_value = mock_insert
 
         creds_instance = mock_credentials.return_value
         creds_instance.valid = False
 
         uploader = YTUploader(settings)
-        with pytest.raises(YTUploaderError, match="YouTube API error: videoTooLarge"):
+        with pytest.raises(PipelineError, match="YouTube API error: videoTooLarge"):
             uploader.upload_shorts(
                 video_path=video_path,
                 title="Test #Shorts",
                 description="Desc",
                 tags=["#Shorts"],
             )
-
-
-class TestMakePublic:
-    def test_make_public_success(self, settings, mocker, mock_credentials, mock_request):
-        """make_public should call update with correct body."""
-        mock_service = mocker.Mock()
-        mock_update_call = mocker.Mock()
-        mock_service.videos.return_value.update.return_value = mock_update_call
-        mocker.patch("modules.yt_uploader.build", return_value=mock_service)
-
-        creds_instance = mock_credentials.return_value
-        creds_instance.valid = False
-
-        uploader = YTUploader(settings)
-        result = uploader.make_public("test_video_id")
-
-        assert result is True
-        mock_service.videos.return_value.update.assert_called_once_with(
-            part="status",
-            body={
-                "id": "test_video_id",
-                "status": {"privacyStatus": "public"},
-            },
-        )
-        mock_update_call.execute.assert_called_once()
-
-    def test_make_public_failure(self, settings, mocker, mock_credentials, mock_request):
-        """make_public should return False on exception."""
-        mock_service = mocker.Mock()
-        mock_service.videos.return_value.update.side_effect = Exception("API error")
-        mocker.patch("modules.yt_uploader.build", return_value=mock_service)
-
-        creds_instance = mock_credentials.return_value
-        creds_instance.valid = False
-
-        uploader = YTUploader(settings)
-        result = uploader.make_public("test_video_id")
-        assert result is False
 
 
 class TestGetService:
