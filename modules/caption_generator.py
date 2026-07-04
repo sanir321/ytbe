@@ -98,33 +98,10 @@ class CaptionGenerator:
                 )
 
                 raw = resp.choices[0].message.content
-                # Reasoning models sometimes put content in reasoning field instead
                 if not raw:
-                    reasoning = getattr(resp.choices[0].message, "reasoning", None)
-                    if reasoning:
-                        logger.info("Reasoning model used content=None, skipping (%d reasoning chars)", len(reasoning))
-                        # Don't try to parse reasoning - it's chain-of-thought, not output
                     continue
 
-                raw = raw.strip()
-                if raw.startswith("```"):
-                    raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-                try:
-                    data = json.loads(raw)
-                except json.JSONDecodeError:
-                    raw = raw.replace(",\n}", "\n}").replace(",}", "}").replace(",\n]", "\n]").replace(",]", "]").replace("'", '"')
-                    data = json.loads(raw)
-                # Normalize hashtags: handle list, comma-separated, or space-separated string
-                if isinstance(data.get("hashtags"), str):
-                    # Try comma first, fall back to spaces
-                    if "," in data["hashtags"]:
-                        data["hashtags"] = [
-                            h.strip() for h in data["hashtags"].split(",") if h.strip()
-                        ]
-                    else:
-                        data["hashtags"] = [
-                            h.strip() for h in data["hashtags"].split() if h.strip()
-                        ]
+                data = json.loads(raw.strip())
                 # Ensure all hashtags start with #
                 data["hashtags"] = [
                     f"#{h.lstrip('#')}" if not h.startswith("#") else h

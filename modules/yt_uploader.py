@@ -145,20 +145,8 @@ class YTUploader:
                     progress_callback(status.resumable_progress, total_bytes)
 
             video_id = response.get("id")
-            upload_status = response.get("status", {}).get("uploadStatus", "unknown")
-            privacy_status = response.get("status", {}).get("privacyStatus", "unknown")
-
             if video_id:
-                logger.info(
-                    "Uploaded: title=%r -> https://youtu.be/%s "
-                    "(uploadStatus=%s, privacy=%s)",
-                    title,
-                    video_id,
-                    upload_status,
-                    privacy_status,
-                )
-                if upload_status not in ("uploaded", "processed"):
-                    logger.warning("Upload status unexpected: %s", upload_status)
+                logger.info("Uploaded: title=%r -> https://youtu.be/%s", title, video_id)
                 return video_id
             else:
                 logger.error("Upload succeeded but no video ID returned")

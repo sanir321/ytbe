@@ -34,35 +34,6 @@ class TestCheckFFmpeg:
             VideoProcessor._check_ffmpeg()
 
 
-class TestDuration:
-    @pytest.fixture
-    def short_video(self, tmp_path):
-        """Create a 10-second synthetic test video."""
-        if not ffmpeg_available():
-            pytest.skip("FFmpeg not available")
-        path = tmp_path / "input_short.mp4"
-        subprocess.run(
-            ["ffmpeg", "-y",
-             "-f", "lavfi", "-i", "color=c=blue:s=640x640:d=10:r=30",
-             "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
-             "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
-             "-c:a", "aac", "-shortest",
-             str(path)],
-            capture_output=True, check=True,
-        )
-        return path
-
-    def test_get_duration_returns_float(self, short_video):
-        dur = VideoProcessor.get_duration(short_video)
-        assert isinstance(dur, float)
-        assert 9 < dur < 11
-
-    def test_get_duration_nonexistent_file(self):
-        if not ffmpeg_available():
-            pytest.skip("FFmpeg not available")
-        with pytest.raises(subprocess.CalledProcessError):
-            VideoProcessor.get_duration("nonexistent.mp4")
-
 
 # Use fixture in older-style to avoid pytest collection issues
 @pytest.fixture
@@ -109,9 +80,9 @@ class TestProcessVideo:
         short_video = _create_short_video(tmp_path)
         output = tmp_path / "output_short.mp4"
 
-        # Patch get_duration to return < 60s
-        mocker.patch.object(VideoProcessor, "get_duration", return_value=15.0)
-        mocker.patch("subprocess.run", return_value=mocker.Mock(returncode=0))
+        ffprobe_out = mocker.Mock(returncode=0, stdout='{"format":{"duration":"15.0"}}', stderr="")
+        ffmpeg_out = mocker.Mock(returncode=0)
+        mocker.patch("subprocess.run", side_effect=[ffmpeg_out, ffprobe_out, ffmpeg_out])
 
         proc = VideoProcessor(settings)
         result = proc.process_video(short_video, output)
@@ -129,7 +100,11 @@ class TestProcessVideo:
         result = proc.process_video(long_video, output)
         assert result is True
         assert output.exists()
-        dur = VideoProcessor.get_duration(output)
+        info = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", str(output)],
+            capture_output=True, text=True, check=True,
+        )
+        dur = float(json.loads(info.stdout)["format"]["duration"])
         assert dur <= 61
 
     def test_process_long_video_proper_dimensions(self, settings, tmp_path):
@@ -173,8 +148,12 @@ class TestAspectRatioConversion:
             pytest.skip("FFmpeg not available")
         short_video = _create_short_video(tmp_path)
         output = tmp_path / "padded.mp4"
-        # Mock duration > 60s so it goes through scale/pad path (not fast copy)
-        mocker.patch.object(VideoProcessor, "get_duration", return_value=90.0)
+        original_run = subprocess.run
+        mocker.patch("subprocess.run", side_effect=lambda *a, **kw: (
+            mocker.Mock(returncode=0, stdout='{"format":{"duration":"90.0"}}', stderr="")
+            if any("-show_format" in str(x) for x in a[0])
+            else original_run(*a, **kw)
+        ))
         proc = VideoProcessor(settings)
         proc.process_video(short_video, output)
         info = subprocess.run(

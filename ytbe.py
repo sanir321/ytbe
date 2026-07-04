@@ -348,35 +348,6 @@ def cmd_upload(settings, db, args):
         _upload_both(settings, db)
 
 
-SCOPE_READONLY = "https://www.googleapis.com/auth/youtube.readonly"
-SCOPE_UPLOAD = "https://www.googleapis.com/auth/youtube.upload"
-
-
-def _build_yt_data(settings, ch):
-    from google.oauth2.credentials import Credentials
-    from google.auth.transport.requests import Request
-    from googleapiclient.discovery import build
-
-    if ch == 2 and settings.yt2_refresh_token:
-        cid, cs, rt = settings.yt2_client_id, settings.yt2_client_secret, settings.yt2_refresh_token
-    else:
-        cid, cs, rt = settings.yt_client_id, settings.yt_client_secret, settings.yt_refresh_token
-
-    for scope in [SCOPE_READONLY, SCOPE_UPLOAD]:
-        try:
-            creds = Credentials(
-                token=None, refresh_token=rt,
-                token_uri="https://oauth2.googleapis.com/token",
-                client_id=cid, client_secret=cs,
-                scopes=[scope],
-            )
-            creds.refresh(Request())
-            return build("youtube", "v3", credentials=creds), None
-        except Exception:
-            continue
-    return None, f"Channel {ch}: token needs re-authorization (run python scripts/yt_oauth_setup.py)"
-
-
 def cmd_analytics(settings, db, args):
     total = db.count_total()
     posted = db.count_by_status("posted")
@@ -423,158 +394,6 @@ def cmd_analytics(settings, db, args):
     console.print()
     console.rule()
 
-
-def _fetch_growth_data(settings, posted_ids):
-    result = {"channels": {}, "errors": []}
-
-    for ch in [1, 2]:
-        if ch == 2 and not settings.yt2_refresh_token:
-            continue
-        label = f"Channel {ch}"
-        yt_data, err = _build_yt_data(settings, ch)
-        if not yt_data:
-            result["errors"].append(f"{label}: {err}")
-            continue
-        ch_data = {}
-
-        try:
-            ch_data["channel_stats"] = yt_data.channels().list(
-                part="statistics,snippet", mine=True
-            ).execute()
-        except Exception as e:
-            result["errors"].append(f"{label} channel_stats: {e}")
-
-        video_stats = {}
-        if posted_ids:
-            try:
-                ids = list(set(posted_ids))
-                for i in range(0, len(ids), 50):
-                    batch = ids[i:i+50]
-                    resp = yt_data.videos().list(
-                        part="statistics,snippet",
-                        id=",".join(batch)
-                    ).execute()
-                    for item in resp.get("items", []):
-                        vid = item["id"]
-                        if vid in video_stats:
-                            continue
-                        s = item.get("statistics", {})
-                        video_stats[vid] = {
-                            "title": item.get("snippet", {}).get("title", ""),
-                            "views": int(s.get("viewCount", 0)),
-                            "likes": int(s.get("likeCount", 0)),
-                            "comments": int(s.get("commentCount", 0)),
-                        }
-            except Exception as e:
-                result["errors"].append(f"{label} video_stats: {e}")
-
-        ch_data["video_stats"] = video_stats
-        result["channels"][label] = ch_data
-
-    return result
-
-
-def cmd_growth(settings, db, args):
-    rows = db._fetchall("SELECT id, ig_shortcode, yt_title, yt_video_id, status, created_at FROM queue ORDER BY id DESC")
-    posted = [r for r in rows if r["status"] == "posted"]
-    posted_ids = [r["yt_video_id"] for r in posted if r["yt_video_id"]]
-
-    console.rule("[bold green]Channel Growth Report[/]")
-    console.print()
-
-    data = run_with_spinner("Fetching growth data", _fetch_growth_data, settings, posted_ids)
-
-    errors = data.get("errors", [])
-    if errors:
-        for e in errors[:3]:
-            console.print(f"  [dim]{e}[/]")
-        if len(errors) > 3:
-            console.print(f"  [dim]... and {len(errors)-3} more[/]")
-        console.print()
-
-    for label, ch_data in data.get("channels", {}).items():
-        console.print(f"[bold green underline]{label}[/]")
-        console.print()
-
-        ch_stats = ch_data.get("channel_stats", {}).get("items", [])
-        if ch_stats:
-            s = ch_stats[0].get("statistics", {})
-            t = Table(show_header=False, box=box.SIMPLE, padding=(0, 2))
-            t.add_column("Metric", style="dim", width=26)
-            t.add_column("Value")
-            t.add_row("Subscribers", f"[bold]{int(s.get('subscriberCount', 0)):,}[/]")
-            t.add_row("Total channel views", f"{int(s.get('viewCount', 0)):,}")
-            t.add_row("Videos posted (lifetime)", f"{int(s.get('videoCount', 0)):,}")
-            console.print(t)
-            console.print()
-
-        vs = ch_data.get("video_stats", {})
-        if vs:
-            sorted_videos = sorted(vs.items(), key=lambda x: x[1]["views"], reverse=True)
-            total_views = sum(v["views"] for v in vs.values())
-            total_likes = sum(v["likes"] for v in vs.values())
-            total_comments = sum(v["comments"] for v in vs.values())
-            avg_views = total_views / max(len(vs), 1)
-            avg_eng = ((total_likes + total_comments) / max(total_views, 1)) * 100
-
-            t = Table(show_header=False, box=box.SIMPLE, padding=(0, 2))
-            t.add_column("Metric", style="dim", width=26)
-            t.add_column("Value")
-            t.add_row("Total video views", f"[bold]{total_views:,}[/]")
-            t.add_row("Total likes", f"{total_likes:,}")
-            t.add_row("Total comments", f"{total_comments:,}")
-            t.add_row("Avg views/video", f"[cyan]{avg_views:,.0f}[/]")
-            t.add_row("Engagement rate", f"{avg_eng:.2f}%")
-            console.print(t)
-            console.print()
-
-            console.print("[bold]Top Videos[/]")
-            t = Table(box=box.SIMPLE)
-            t.add_column("#", style="dim")
-            t.add_column("Title", width=50, no_wrap=False)
-            t.add_column("Views", justify="right")
-            t.add_column("Eng Rate", justify="right")
-            for idx, (vid, v) in enumerate(sorted_videos[:10], 1):
-                eng_rate = ((v["likes"] + v["comments"]) / max(v["views"], 1)) * 100
-                title = v["title"][:48] + ".." if len(v["title"]) > 48 else v["title"]
-                t.add_row(str(idx), title, f"{v['views']:,}", f"[cyan]{eng_rate:.1f}%[/]")
-            console.print(t)
-            console.print()
-
-            if len(sorted_videos) >= 3:
-                top3_avg = sum(v["views"] for _, v in sorted_videos[:3]) / 3
-                rest_avg = sum(v["views"] for _, v in sorted_videos[3:]) / max(len(sorted_videos) - 3, 1)
-                if top3_avg > rest_avg * 2:
-                    console.print("  [green]Top 3 videos are 2x+ above average.[/] Identify what they have in common and replicate.")
-                console.print()
-
-    if not data.get("channels"):
-        console.print("[yellow]No channel data available.[/] Post some videos first.")
-        console.print()
-
-    console.print("[bold green]Recommendations[/]")
-    console.print()
-    recommendations = []
-    for label, ch_data in data.get("channels", {}).items():
-        vs = ch_data.get("video_stats", {})
-        if vs:
-            sorted_videos = sorted(vs.items(), key=lambda x: x[1]["views"], reverse=True)
-            if sorted_videos:
-                top_title = sorted_videos[0][1]["title"]
-                recommendations.append(f"[green]  ] Analyze what made \"{top_title}\" the top video and replicate its pattern.")
-            avg_eng = sum((v["likes"] + v["comments"]) / max(v["views"], 1) for v in vs.values()) / max(len(vs), 1) * 100
-            if avg_eng < 3:
-                recommendations.append("[yellow]  ] Engagement rate is low (< 3%). Add calls-to-action or ask questions in videos.")
-
-    if not recommendations:
-        recommendations.append("[dim]  Post more videos to get actionable recommendations.")
-
-    for r in recommendations:
-        console.print(r)
-    console.print()
-    console.print("[dim]Tip:[/] Run [bold]growth[/] regularly to track your channel momentum.")
-    console.print()
-    console.rule()
 
 
 def _delete_video_files(settings):
@@ -637,7 +456,7 @@ COMMANDS = {
     "recent": cmd_recent,
     "run": cmd_run,
     "analytics": cmd_analytics,
-    "growth": cmd_growth,
+
     "clear": cmd_clear,
 }
 
@@ -650,16 +469,26 @@ ALIASES = {
     "go": "run",
     "pipeline": "run",
     "all": "run",
+    "auto": "run",
+    "full": "run",
     "analytics": "analytics",
     "insights": "analytics",
     "report": "analytics",
-    "grow": "growth",
-    "momentum": "growth",
-
     "clear": "clear",
     "reset": "clear",
     "queue": "list",
     "show": "list",
+    "publish": "upload",
+    "post": "upload",
+    "fetch": "download",
+    "get": "download",
+    "convert": "process",
+    "transcode": "process",
+    "count": "status",
+    "stats": "status",
+    "last": "recent",
+    "analyze": "analytics",
+    "audit": "analytics",
     "help": "help",
     "?": "help",
     "exit": "exit",
@@ -679,7 +508,7 @@ def show_help():
         ("recent", "", "Show recent entries"),
         ("run", "go", "Full pipeline"),
         ("analytics", "insights", "Analytics & improvement ideas"),
-        ("growth", "grow", "Channel growth report (top videos, recommendations)"),
+
         ("clear", "reset", "Delete all queue entries"),
         ("help", "?", "Show this help"),
         ("exit", "quit", "Exit"),
@@ -711,23 +540,6 @@ def _resolve_command(line):
     if cmd == "help":
         show_help()
         return None, []
-
-    nl_map = {
-        "upload": ["upload", "publish", "post"],
-        "download": ["download", "fetch", "get"],
-        "list": ["list", "show", "queue", "ls"],
-        "status": ["status", "count", "stats"],
-        "process": ["process", "convert", "transcode"],
-        "caption": ["caption", "captiongen", "title"],
-        "recent": ["recent", "last"],
-        "run": ["run", "pipeline", "go", "full", "all", "auto"],
-        "analytics": ["analytics", "insights", "report", "analyze", "audit"],
-        "growth": ["growth", "grow", "momentum", "trend", "audience", "recommendations"],
-        "clear": ["clear", "reset", "delete", "wipe", "clean", "nuke"],
-    }
-    for resolved, triggers in nl_map.items():
-        if cmd in triggers:
-            return resolved, args
 
     return cmd, args
 

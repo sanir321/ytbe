@@ -5,8 +5,6 @@ import logging
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional
-
 from config.settings import Settings, PipelineError
 
 logger = logging.getLogger(__name__)
@@ -40,27 +38,6 @@ class VideoProcessor:
             ) from e
 
     # ------------------------------------------------------------------
-    # Duration check
-    # ------------------------------------------------------------------
-    @staticmethod
-    def get_duration(file_path: str | Path) -> float:
-        """Get video duration in seconds using ffprobe."""
-        result = subprocess.run(
-            [
-                FFPROBE_BIN,
-                "-v", "quiet",
-                "-print_format", "json",
-                "-show_format",
-                str(file_path),
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        info = json.loads(result.stdout)
-        return float(info["format"]["duration"])
-
-    # ------------------------------------------------------------------
     # Processing
     # ------------------------------------------------------------------
     def process_video(
@@ -84,12 +61,15 @@ class VideoProcessor:
             logger.error("Input file not found: %s", input_path)
             return False
 
-        # Check duration - skip processing if already ≤ 60s
         try:
-            duration = self.get_duration(input_path)
+            result = subprocess.run(
+                [FFPROBE_BIN, "-v", "quiet", "-print_format", "json", "-show_format", str(input_path)],
+                capture_output=True, text=True, check=True,
+            )
+            duration = float(json.loads(result.stdout)["format"]["duration"])
         except Exception as e:
             logger.warning("Could not determine duration: %s", e)
-            duration = 999  # process anyway
+            duration = 999
 
         target_w = self.settings.target_width
         target_h = self.settings.target_height

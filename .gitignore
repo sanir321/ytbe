@@ -58,3 +58,11 @@ New Text Document.txt
 PLAN.md
 project.md
 reel_urls.txt
+
+# Debug / temp output
+_*.txt
+_*.html
+_*.png
+copy_cookies.ps1
+insta_cookies*.txt
+tracker/queue.db
