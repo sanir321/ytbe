@@ -1,8 +1,8 @@
-name: Daily Shorts Publisher
+name: Daily Shorts Publisher (YouTube & Rumble)
 
 on:
   schedule:
-    # Runs daily at 18:00 UTC (prime viral engagement window)
+    # Runs daily at 18:00 UTC (23:30 IST prime viral engagement window)
     - cron: '0 18 * * *'
   workflow_dispatch:
     inputs:
@@ -10,6 +10,15 @@ on:
         description: 'Specific Day to Publish (1-28) or "auto" for next queued'
         required: true
         default: 'auto'
+      platform:
+        description: 'Target Platform (all, youtube, or rumble)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - youtube
+          - rumble
       privacy:
         description: 'YouTube Video Privacy'
         required: true
@@ -54,17 +63,18 @@ jobs:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          RUMBLE_COOKIES_JSON: ${{ secrets.RUMBLE_COOKIES_JSON }}
           GITHUB_ACTIONS: 'true'
         run: |
           CMD="python publish.py"
           
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            CMD="$CMD --day ${{ inputs.day }} --privacy ${{ inputs.privacy }}"
+            CMD="$CMD --day ${{ inputs.day }} --platform ${{ inputs.platform }} --privacy ${{ inputs.privacy }}"
             if [ "${{ inputs.dry_run }}" = "true" ]; then
               CMD="$CMD --dry-run"
             fi
           else
-            CMD="$CMD --day auto --privacy public"
+            CMD="$CMD --day auto --platform all --privacy public"
           fi
           
           echo "Running: $CMD"

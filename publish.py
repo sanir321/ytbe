@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
-Autonomous YouTube Shorts Publisher for GitHub Actions
-Reads manifest.json, picks the scheduled video, uploads to YouTube Data API v3,
-and commits the updated publication status back to GitHub.
+Autonomous Multi-Platform Shorts Publisher for GitHub Actions
+Reads manifest.json, picks the scheduled video, uploads to:
+1. YouTube Data API v3 (Shorts)
+2. Rumble Direct API (Roblox Shorts Network, Channel 7985034, Tier 6 Monetization)
+And commits the updated publication status back to GitHub.
 """
 
 import os
@@ -16,6 +18,11 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
+
+try:
+    from rumble_api import RumbleAPI
+except ImportError:
+    RumbleAPI = None
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube",
@@ -37,7 +44,6 @@ def get_youtube_client():
     refresh_token = os.environ.get("YT_REFRESH_TOKEN")
 
     if not all([client_id, client_secret, refresh_token]):
-        # Try local token fallback if running outside GitHub Actions
         token_file = os.path.expanduser("~/youtube_token.json")
         if os.path.exists(token_file):
             print(f"[AUTH] Loading local credentials from {token_file}")
@@ -48,7 +54,8 @@ def get_youtube_client():
                 refresh_token = tf.get("refresh_token")
 
     if not all([client_id, client_secret, refresh_token]):
-        raise ValueError("Missing YouTube credentials (YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN).")
+        print("[WARNING] Missing YouTube credentials (YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN). Skipping YouTube.")
+        return None
 
     creds = Credentials(
         token=None,
@@ -59,28 +66,20 @@ def get_youtube_client():
         scopes=SCOPES
     )
 
-    print("[AUTH] Refreshing YouTube OAuth access token...")
-    creds.refresh(Request())
-    print("[AUTH] Token refreshed successfully.")
+    if not creds.valid:
+        print("[AUTH] Refreshing YouTube OAuth access token...")
+        creds.refresh(Request())
+        print("[AUTH] Token refreshed successfully.")
 
     return build("youtube", "v3", credentials=creds)
 
-def upload_short(youtube, video_path, title, description, tags, privacy="public"):
-    if not os.path.exists(video_path):
-        raise FileNotFoundError(f"Video file not found at: {video_path}")
-
-    file_size_mb = os.path.getsize(video_path) / (1024 * 1024)
-    print(f"[UPLOAD] Starting upload for '{title}' ({file_size_mb:.1f} MB)...")
-
-    # YouTube Shorts optimal snippet
+def upload_short(youtube, file_path, title, description, tags, privacy="public"):
     body = {
         "snippet": {
             "title": title[:100],
-            "description": description[:5000],
-            "tags": tags[:30],
-            "categoryId": "24",  # Entertainment
-            "defaultLanguage": "en",
-            "defaultAudioLanguage": "en"
+            "description": description,
+            "tags": tags if isinstance(tags, list) else [tags],
+            "categoryId": "20"  # Gaming category
         },
         "status": {
             "privacyStatus": privacy,
@@ -89,10 +88,10 @@ def upload_short(youtube, video_path, title, description, tags, privacy="public"
     }
 
     media = MediaFileUpload(
-        video_path,
-        mimetype="video/mp4",
-        chunksize=4 * 1024 * 1024,
-        resumable=True
+        file_path,
+        chunksize=1024*1024*4,
+        resumable=True,
+        mimetype="video/mp4"
     )
 
     request = youtube.videos().insert(
@@ -101,21 +100,60 @@ def upload_short(youtube, video_path, title, description, tags, privacy="public"
         media_body=media
     )
 
+    print(f"[YOUTUBE] Starting upload for '{title}' ({os.path.getsize(file_path)/(1024*1024):.1f} MB)...")
     response = None
     while response is None:
         status, response = request.next_chunk()
         if status:
-            pct = int(status.progress() * 100)
-            print(f"[UPLOAD] Progress: {pct}%")
+            print(f"[YOUTUBE] Progress: {int(status.progress() * 100)}%")
 
     video_id = response.get("id")
     video_url = f"https://youtube.com/shorts/{video_id}"
-    print(f"[SUCCESS] Uploaded: {video_url}")
+    print(f"[YOUTUBE SUCCESS] Uploaded: {video_url}")
     return video_id, video_url
 
-def commit_and_push_manifest(manifest_path="manifest.json", day_num=None):
-    if os.environ.get("GITHUB_ACTIONS") != "true":
-        print("[GIT] Local environment detected; skipping auto-commit.")
+def upload_to_rumble(video_file, title, description, tags, channel_id="7985034", license_tier="6"):
+    if not RumbleAPI:
+        print("[RUMBLE] RumbleAPI module not available. Skipping Rumble upload.")
+        return None
+
+    client = RumbleAPI()
+    if not client.cookies.get("u_s") and not client.cookies.get("a_s"):
+        print("[RUMBLE WARNING] No Rumble session cookies found in RUMBLE_COOKIES_JSON or session file. Skipping Rumble.")
+        return None
+
+    # Formatted description with channel branding & viral tags
+    rumble_description = (
+        f"{description}\n\n"
+        f"🎬 Channel: Roblox Shorts Network (@samir432)\n"
+        f"🔔 Follow @samir432 for daily viral Roblox story shorts and animations!\n"
+        f"💬 Rant, like, and leave your thoughts below!\n\n"
+        f"#Shorts #Roblox #Gaming #Animation #Viral #RumbleShorts #RobloxStories"
+    )
+    rumble_tags = ", ".join(tags) if isinstance(tags, list) else str(tags)
+
+    print(f"[RUMBLE] Starting direct upload for '{title}' to Channel {channel_id} (Tier {license_tier})...")
+    res = client.upload_video(
+        video_path=video_file,
+        title=title,
+        description=rumble_description,
+        tags=rumble_tags,
+        visibility="public",
+        channel_id=channel_id,
+        license_tier=license_tier
+    )
+
+    if res.get("ok"):
+        url = res.get("url")
+        print(f"[RUMBLE SUCCESS] Published: {url}")
+        return res
+    else:
+        print(f"[RUMBLE ERROR] Upload response: {res}")
+        return None
+
+def commit_and_push_manifest(manifest_path, day_num=None):
+    if not os.environ.get("GITHUB_ACTIONS"):
+        print("[GIT] Running locally; skipping git auto-commit.")
         return
 
     print("[GIT] Configuring git for auto-commit...")
@@ -123,7 +161,7 @@ def commit_and_push_manifest(manifest_path="manifest.json", day_num=None):
     subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
     subprocess.run(["git", "add", manifest_path], check=True)
     
-    commit_msg = f"chore(schedule): mark Day {day_num} as published [skip ci]" if day_num else "chore(schedule): update published status [skip ci]"
+    commit_msg = f"chore(schedule): publish Day {day_num} to YouTube & Rumble [skip ci]" if day_num else "chore(schedule): update published status [skip ci]"
     res = subprocess.run(["git", "commit", "-m", commit_msg])
     if res.returncode == 0:
         print("[GIT] Pushing manifest update back to repository...")
@@ -133,10 +171,11 @@ def commit_and_push_manifest(manifest_path="manifest.json", day_num=None):
         print("[GIT] No changes to commit.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Autonomous Shorts Publisher")
+    parser = argparse.ArgumentParser(description="Autonomous Multi-Platform Shorts Publisher")
     parser.add_argument("--day", default="auto", help="Day number (1-28) or 'auto'")
     parser.add_argument("--dry-run", action="store_true", help="Simulate execution without uploading")
-    parser.add_argument("--privacy", default="public", choices=["public", "unlisted", "private"], help="Privacy status")
+    parser.add_argument("--privacy", default="public", choices=["public", "unlisted", "private"], help="YouTube Privacy status")
+    parser.add_argument("--platform", default="all", choices=["all", "youtube", "rumble"], help="Platform target")
     args = parser.parse_args()
 
     manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manifest.json")
@@ -146,7 +185,10 @@ def main():
     target_entry = None
     if args.day == "auto":
         for entry in schedule:
-            if entry.get("status") == "queued":
+            # Need upload if not fully published to both platforms
+            yt_done = bool(entry.get("youtube_id"))
+            rm_done = bool(entry.get("rumble_url"))
+            if entry.get("status") == "queued" or (args.platform == "rumble" and not rm_done) or (args.platform == "youtube" and not yt_done) or (args.platform == "all" and (not yt_done or not rm_done)):
                 target_entry = entry
                 break
         if not target_entry:
@@ -169,30 +211,58 @@ def main():
     tags = target_entry["tags"]
 
     print(f"\n==========================================")
-    print(f"🎬 EXECUTING PUBLISH FOR DAY {day_num}")
+    print(f"🎬 EXECUTING DUAL PUBLISH FOR DAY {day_num}")
     print(f"📌 Title: {title}")
     print(f"📁 Video File: {video_file}")
-    print(f"🔒 Privacy: {args.privacy}")
+    print(f"🎯 Target Platform: {args.platform}")
     print(f"==========================================\n")
 
     if args.dry_run:
         print(f"[DRY-RUN] Verification complete. Video file exists: {os.path.exists(video_file)}")
         print(f"[DRY-RUN] Size: {os.path.getsize(video_file) / (1024*1024):.1f} MB")
-        print("[DRY-RUN] Skipping live YouTube API upload.")
+        print("[DRY-RUN] Skipping live API uploads.")
         return 0
 
-    youtube = get_youtube_client()
-    video_id, video_url = upload_short(youtube, video_file, title, description, tags, privacy=args.privacy)
+    published_anything = False
 
-    target_entry["status"] = "published"
-    target_entry["youtube_id"] = video_id
-    target_entry["published_url"] = video_url
-    target_entry["published_at"] = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    # 1. YouTube Upload
+    if args.platform in ["all", "youtube"] and not target_entry.get("youtube_id"):
+        try:
+            youtube = get_youtube_client()
+            if youtube:
+                v_id, v_url = upload_short(youtube, video_file, title, description, tags, privacy=args.privacy)
+                target_entry["youtube_id"] = v_id
+                target_entry["published_url"] = v_url
+                target_entry["published_at"] = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+                published_anything = True
+        except Exception as e:
+            print(f"[YOUTUBE ERROR] Failed: {e}")
 
-    save_manifest(manifest, manifest_path)
-    print(f"[MANIFEST] Updated manifest for Day {day_num}.")
+    # 2. Rumble Upload
+    if args.platform in ["all", "rumble"] and not target_entry.get("rumble_url"):
+        try:
+            r_res = upload_to_rumble(video_file, title, description, tags, channel_id="7985034", license_tier="6")
+            if r_res:
+                target_entry["rumble_url"] = r_res.get("url")
+                target_entry["rumble_fid"] = r_res.get("fid")
+                target_entry["rumble_status"] = "published"
+                target_entry["rumble_published_at"] = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+                published_anything = True
+        except Exception as e:
+            print(f"[RUMBLE ERROR] Failed: {e}")
 
-    commit_and_push_manifest(manifest_path, day_num=day_num)
+    if target_entry.get("youtube_id") and target_entry.get("rumble_url"):
+        target_entry["status"] = "published"
+    elif target_entry.get("youtube_id") or target_entry.get("rumble_url"):
+        target_entry["status"] = "partially_published"
+
+    if published_anything:
+        save_manifest(manifest, manifest_path)
+        print(f"[MANIFEST] Updated manifest for Day {day_num}.")
+        commit_and_push_manifest(manifest_path, day_num=day_num)
+    else:
+        print("[INFO] No new uploads performed.")
+
     return 0
 
 if __name__ == "__main__":
