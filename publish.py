@@ -24,6 +24,11 @@ try:
 except ImportError:
     RumbleAPI = None
 
+try:
+    from rumble_booster import boost_all_manifest_videos
+except ImportError:
+    boost_all_manifest_videos = None
+
 SCOPES = [
     "https://www.googleapis.com/auth/youtube",
     "https://www.googleapis.com/auth/youtube.upload",
@@ -151,7 +156,7 @@ def upload_to_rumble(video_file, title, description, tags, channel_id="7985034",
         print(f"[RUMBLE ERROR] Upload response: {res}")
         return None
 
-def commit_and_push_manifest(manifest_path, day_num=None):
+def commit_and_push_manifest(manifest_path, day_num=None, action_note=None):
     if not os.environ.get("GITHUB_ACTIONS"):
         print("[GIT] Running locally; skipping git auto-commit.")
         return
@@ -161,7 +166,13 @@ def commit_and_push_manifest(manifest_path, day_num=None):
     subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
     subprocess.run(["git", "add", manifest_path], check=True)
     
-    commit_msg = f"chore(schedule): publish Day {day_num} to YouTube & Rumble [skip ci]" if day_num else "chore(schedule): update published status [skip ci]"
+    if day_num:
+        commit_msg = f"chore(schedule): publish Day {day_num} & boost views [skip ci]"
+    elif action_note:
+        commit_msg = f"chore(schedule): {action_note} [skip ci]"
+    else:
+        commit_msg = "chore(schedule): update published status [skip ci]"
+
     res = subprocess.run(["git", "commit", "-m", commit_msg])
     if res.returncode == 0:
         print("[GIT] Pushing manifest update back to repository...")
@@ -172,15 +183,23 @@ def commit_and_push_manifest(manifest_path, day_num=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Autonomous Multi-Platform Shorts Publisher")
-    parser.add_argument("--day", default="auto", help="Day number (1-28) or 'auto'")
+    parser.add_argument("--day", default="auto", help="Day number (1-28), 'auto', or 'boost-only'")
     parser.add_argument("--dry-run", action="store_true", help="Simulate execution without uploading")
     parser.add_argument("--privacy", default="public", choices=["public", "unlisted", "private"], help="YouTube Privacy status")
     parser.add_argument("--platform", default="all", choices=["all", "youtube", "rumble"], help="Platform target")
+    parser.add_argument("--boost-count", type=int, default=300, help="Views per video for daily cloud boost (default: 300)")
+    parser.add_argument("--no-boost", action="store_true", help="Skip automated AWS cloud view booster")
     args = parser.parse_args()
 
     manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manifest.json")
     manifest = load_manifest(manifest_path)
     schedule = manifest.get("schedule", [])
+
+    if args.day == "boost-only":
+        if boost_all_manifest_videos:
+            boost_all_manifest_videos(manifest_path, count_per_video=args.boost_count)
+            commit_and_push_manifest(manifest_path, action_note="daily cloud boost")
+        return 0
 
     target_entry = None
     if args.day == "auto":
@@ -193,6 +212,9 @@ def main():
                 break
         if not target_entry:
             print("[INFO] All scheduled videos in the manifest have already been published!")
+            if not args.no_boost and boost_all_manifest_videos and args.platform in ["all", "rumble"]:
+                boost_all_manifest_videos(manifest_path, count_per_video=args.boost_count)
+                commit_and_push_manifest(manifest_path, action_note="daily cloud boost")
             return 0
     else:
         day_val = int(args.day)
@@ -259,9 +281,23 @@ def main():
     if published_anything:
         save_manifest(manifest, manifest_path)
         print(f"[MANIFEST] Updated manifest for Day {day_num}.")
+
+    # 3. Cloud View Boost for all published Rumble videos
+    if not args.no_boost and boost_all_manifest_videos and args.platform in ["all", "rumble"]:
+        print(f"\n==========================================")
+        print(f"⚡ EXECUTING DAILY AWS CLOUD BOOST ({args.boost_count} views/video)")
+        print(f"==========================================")
+        try:
+            boost_res = boost_all_manifest_videos(manifest_path, count_per_video=args.boost_count)
+            if boost_res:
+                published_anything = True
+        except Exception as e:
+            print(f"[BOOST ERROR] Cloud booster encountered error: {e}")
+
+    if published_anything:
         commit_and_push_manifest(manifest_path, day_num=day_num)
     else:
-        print("[INFO] No new uploads performed.")
+        print("[INFO] No new uploads or boosts performed.")
 
     return 0
 

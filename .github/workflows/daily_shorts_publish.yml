@@ -33,6 +33,10 @@ on:
         required: true
         default: false
         type: boolean
+      boost_count:
+        description: 'Views per video for AWS Cloud Boost'
+        required: true
+        default: '300'
 
 permissions:
   contents: write
@@ -58,7 +62,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Execute Publisher
+      - name: Execute Publisher & Cloud Booster
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
@@ -69,12 +73,12 @@ jobs:
           CMD="python publish.py"
           
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            CMD="$CMD --day ${{ inputs.day }} --platform ${{ inputs.platform }} --privacy ${{ inputs.privacy }}"
+            CMD="$CMD --day ${{ inputs.day }} --platform ${{ inputs.platform }} --privacy ${{ inputs.privacy }} --boost-count ${{ inputs.boost_count }}"
             if [ "${{ inputs.dry_run }}" = "true" ]; then
               CMD="$CMD --dry-run"
             fi
           else
-            CMD="$CMD --day auto --platform all --privacy public"
+            CMD="$CMD --day auto --platform all --privacy public --boost-count 300"
           fi
           
           echo "Running: $CMD"
