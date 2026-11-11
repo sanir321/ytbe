@@ -30,8 +30,8 @@
       "rumble_id": "v7i5scc",
       "rumble_fid": 450110406,
       "rumble_url": "https://rumble.com/v7i5scc-in-this-town-every-stroke-makes-you-twice-as-fast-shorts.html",
-      "total_boosted_views": 900,
-      "last_boosted_at": "2026-11-11T23:33:13Z"
+      "total_boosted_views": 1200,
+      "last_boosted_at": "2026-11-11T23:52:16Z"
     },
     {
       "day": 2,
@@ -60,8 +60,8 @@
       "rumble_fid": 450196934,
       "rumble_status": "published",
       "rumble_published_at": "2026-11-11T23:30:52Z",
-      "total_boosted_views": 300,
-      "last_boosted_at": "2026-11-11T23:35:32Z"
+      "total_boosted_views": 600,
+      "last_boosted_at": "2026-11-11T23:54:09Z"
     },
     {
       "day": 3,
@@ -82,9 +82,16 @@
       ],
       "file_size_mb": 30.8,
       "scheduled_time": "2026-11-12 18:00 UTC",
-      "status": "queued",
-      "youtube_id": null,
-      "published_at": null
+      "status": "published",
+      "youtube_id": "AUsXuRJVVXk",
+      "published_at": "2026-11-11T23:50:18Z",
+      "published_url": "https://youtube.com/shorts/AUsXuRJVVXk",
+      "rumble_url": "https://rumble.com/v7i7o58-01-in-this-town-every-living-thi-shorts.html",
+      "rumble_fid": 450198278,
+      "rumble_status": "published",
+      "rumble_published_at": "2026-11-11T23:50:20Z",
+      "total_boosted_views": 300,
+      "last_boosted_at": "2026-11-11T23:56:02Z"
     },
     {
       "day": 4,
