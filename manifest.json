@@ -30,8 +30,8 @@
       "rumble_id": "v7i5scc",
       "rumble_fid": 450110406,
       "rumble_url": "https://rumble.com/v7i5scc-in-this-town-every-stroke-makes-you-twice-as-fast-shorts.html",
-      "total_boosted_views": 300,
-      "last_boosted_at": "2026-11-11T13:33:10Z"
+      "total_boosted_views": 600,
+      "last_boosted_at": "2026-11-11T23:25:28Z"
     },
     {
       "day": 2,
@@ -52,9 +52,10 @@
       ],
       "file_size_mb": 21.5,
       "scheduled_time": "2026-11-11 18:00 UTC",
-      "status": "queued",
-      "youtube_id": null,
-      "published_at": null
+      "status": "partially_published",
+      "youtube_id": "uEyb9TthT30",
+      "published_at": "2026-11-11T23:23:28Z",
+      "published_url": "https://youtube.com/shorts/uEyb9TthT30"
     },
     {
       "day": 3,
