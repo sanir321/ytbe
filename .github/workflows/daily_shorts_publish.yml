@@ -2,8 +2,10 @@ name: Daily Shorts Publisher (YouTube & Rumble)
 
 on:
   schedule:
-    # Runs daily at 18:00 UTC (23:30 IST prime viral engagement window)
+    # Evening viral publication & boost (18:00 UTC = 23:30 IST prime viral window)
     - cron: '0 18 * * *'
+    # Morning drip boost for all active videos (06:00 UTC = 11:30 IST)
+    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       day:
@@ -72,7 +74,9 @@ jobs:
         run: |
           CMD="python publish.py"
           
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "${{ github.event.schedule }}" = "0 6 * * *" ]; then
+            CMD="python publish.py --day boost-only --boost-count 150"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             CMD="$CMD --day ${{ inputs.day }} --platform ${{ inputs.platform }} --privacy ${{ inputs.privacy }} --boost-count ${{ inputs.boost_count }}"
             if [ "${{ inputs.dry_run }}" = "true" ]; then
               CMD="$CMD --dry-run"
