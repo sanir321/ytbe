@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creepypasta Remastered Mystery Network | RobloxShortsNetwork</title>
+    <style>
+        :root {
+            --bg: #0c0d14;
+            --card-bg: #151722;
+            --accent: #ff4757;
+            --text: #f1f2f6;
+            --muted: #a4b0be;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .header h1 {
+            font-size: 2rem;
+            color: var(--accent);
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .header p {
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+        .player-container {
+            max-width: 900px;
+            margin: 0 auto 35px auto;
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            border: 1px solid #2f3542;
+        }
+        .video-wrapper {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            background: #000;
+        }
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+        .player-info {
+            padding: 16px 20px;
+        }
+        .player-info h2 {
+            font-size: 1.25rem;
+            margin-bottom: 6px;
+        }
+        .grid {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #2f3542;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+        }
+        .card-body {
+            padding: 14px 16px;
+        }
+        .card-body h3 {
+            font-size: 1rem;
+            margin-bottom: 6px;
+        }
+        .card-body .meta {
+            font-size: 0.85rem;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+        }
+        .badge {
+            background: rgba(255, 71, 87, 0.2);
+            color: var(--accent);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CREEPYPASTA REMASTERED NETWORK</h1>
+        <p>Curated Horror Mysteries & Lost Media Documentaries • Monetized on Rumble</p>
+    </div>
+
+    <div class="player-container">
+        <div class="video-wrapper">
+            <iframe id="main-player" src="https://rumble.com/embed/v7g28j8/?pub=4&autoplay=2" allow="autoplay; fullscreen" allowfullscreen></iframe>
+        </div>
+        <div class="player-info">
+            <h2 id="current-title">[Remastered] Creepypasta: The Search For SlasherSponge (Full Story)</h2>
+            <p style="color: var(--muted); font-size: 0.9rem;">High-CPM Video Player with Automated Pre-Roll & Mid-Roll Ad Monetization</p>
+        </div>
+    </div>
+
+    <div class="grid" id="video-grid"></div>
+
+    <script>
+        const videos = [
+            { id: "v7g28j8", title: "The Search For 'SlasherSponge'", duration: "06:20", words: 907, url: "https://rumble.com/v7i8lgq-remastered-creepypasta-the-search-for-slashersponge-full-story.html" },
+            { id: "v7g2972", title: "TellyBellies (by ArtsiCartooni)", duration: "11:27", words: 1816, url: "https://rumble.com/v7i8m4k-remastered-creepypasta-tellybellies-by-artsicartooni.html" },
+            { id: "v7g29g2", title: "End of the Void (by Alexcornball)", duration: "06:54", words: 1039, url: "https://rumble.com/v7i8mdk-remastered-creepypasta-end-of-the-void-by-alexcornball.html" },
+            { id: "v7g29q4", title: "The Bunny Nobody Loved", duration: "08:04", words: 1220, url: "https://rumble.com/v7i8mnm-remastered-creepypasta-the-bunny-nobody-loved-by-xavier.html" },
+            { id: "v7g2abi", title: "My Singing Monsters: Bloody Autumn", duration: "10:13", words: 1544, url: "https://rumble.com/v7i8n90-remastered-creepypasta-my-singing-monsters-bloody-autumn-by-nathan.html" },
+            { id: "v7g2aua", title: "Pokémon: EP038 Alternate Sightings", duration: "07:28", words: 1180, url: "https://rumble.com/v7i8nrs-remastered-creepypasta-pokmon-ep038-alternate-sightings-by-cherthesketcher.html" }
+        ];
+
+        let currentIndex = 0;
+        const player = document.getElementById("main-player");
+        const titleEl = document.getElementById("current-title");
+        const grid = document.getElementById("video-grid");
+
+        function loadVideo(index) {
+            currentIndex = index;
+            const v = videos[index];
+            player.src = `https://rumble.com/embed/${v.id}/?pub=4&autoplay=2`;
+            titleEl.textContent = `[Remastered] Creepypasta: ${v.title}`;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Auto-rotation playlist: switches video every 90 seconds to trigger next pre-roll ad
+        setInterval(() => {
+            let nextIndex = (currentIndex + 1) % videos.length;
+            loadVideo(nextIndex);
+        }, 90000);
+
+        videos.forEach((v, idx) => {
+            const card = document.createElement("div");
+            card.className = "card";
+            card.onclick = () => loadVideo(idx);
+            card.innerHTML = `
+                <div class="card-body">
+                    <span class="badge">Monetized</span>
+                    <h3 style="margin-top: 8px;">${v.title}</h3>
+                    <div class="meta" style="margin-top: 10px;">
+                        <span>⏱️ ${v.duration}</span>
+                        <span>🎙️ ${v.words} words</span>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    </script>
+</body>
+</html>
