@@ -12,7 +12,7 @@ import sys
 import json
 import argparse
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -189,6 +189,7 @@ def main():
     parser.add_argument("--platform", default="all", choices=["all", "youtube", "rumble"], help="Platform target")
     parser.add_argument("--boost-count", type=int, default=300, help="Views per video for daily cloud boost (default: 300)")
     parser.add_argument("--no-boost", action="store_true", help="Skip automated AWS cloud view booster")
+    parser.add_argument("--force", action="store_true", help="Force upload even if a video was already published today")
     args = parser.parse_args()
 
     manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manifest.json")
@@ -203,11 +204,37 @@ def main():
 
     target_entry = None
     if args.day == "auto":
+        # Check if a video has already been published today (UTC)
+        today_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        already_published_today = any(
+            (e.get("published_at") or "").startswith(today_utc) or (e.get("rumble_published_at") or "").startswith(today_utc)
+            for e in schedule
+            if e.get("status") == "published"
+        )
+        if already_published_today and not args.force:
+            print(f"[THROTTLE] A video was already published today ({today_utc}). Skipping new upload to maintain strict 1/day schedule.")
+            if not args.no_boost and boost_all_manifest_videos and args.platform in ["all", "rumble"]:
+                boost_all_manifest_videos(manifest_path, count_per_video=args.boost_count)
+                commit_and_push_manifest(manifest_path, action_note="daily cloud boost")
+            return 0
+
+        now_utc = datetime.now(timezone.utc)
         for entry in schedule:
             # Need upload if not fully published to both platforms
             yt_done = bool(entry.get("youtube_id"))
             rm_done = bool(entry.get("rumble_url"))
-            if entry.get("status") == "queued" or (args.platform == "rumble" and not rm_done) or (args.platform == "youtube" and not yt_done) or (args.platform == "all" and (not yt_done or not rm_done)):
+            needs_pub = entry.get("status") == "queued" or (args.platform == "rumble" and not rm_done) or (args.platform == "youtube" and not yt_done) or (args.platform == "all" and (not yt_done or not rm_done))
+            if needs_pub:
+                # Strictly enforce scheduled_time unless --force is passed
+                sched_str = entry.get("scheduled_time", "")
+                if sched_str and not args.force:
+                    try:
+                        sched_dt = datetime.strptime(sched_str, "%Y-%m-%d %H:%M %Z").replace(tzinfo=timezone.utc)
+                        if now_utc < sched_dt:
+                            print(f"[SCHEDULE] Day {entry['day']} is scheduled for {sched_str}. Not due yet (Current UTC: {now_utc.strftime('%Y-%m-%d %H:%M')}).")
+                            break
+                    except Exception:
+                        pass
                 target_entry = entry
                 break
         if not target_entry:
