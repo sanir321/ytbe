@@ -1,0 +1,82 @@
+name: Daily Crypto & Macro Long-Form Publisher (Rumble)
+
+on:
+  schedule:
+    # 13:00 UTC = 18:30 IST prime evening long-form viewing
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+    inputs:
+      auto:
+        description: 'Automatically pick #1 viral candidate'
+        required: true
+        default: true
+        type: boolean
+      topic:
+        description: 'Specific topic (optional)'
+        required: false
+        default: ''
+      video_id:
+        description: 'Specific YouTube Video ID (optional)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Dry run test mode'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  publish_crypto:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install System Dependencies (FFmpeg & Fonts)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-liberation fonts-dejavu-core
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install yt-dlp pillow requests curl_cffi beautifulsoup4
+
+      - name: Execute Autonomous Publisher
+        env:
+          RUMBLE_COOKIES_JSON: ${{ secrets.RUMBLE_COOKIES_JSON }}
+        run: |
+          CMD="python crypto_automation/workflow.py"
+          if [ "${{ inputs.auto }}" = "true" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+            CMD="$CMD --auto"
+          fi
+          if [ -n "${{ inputs.topic }}" ]; then
+            CMD="$CMD --topic '${{ inputs.topic }}'"
+          fi
+          if [ -n "${{ inputs.video_id }}" ]; then
+            CMD="$CMD --video-id '${{ inputs.video_id }}'"
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+          echo "Executing: $CMD"
+          eval $CMD
+
+      - name: Commit & Push Updated Archive Manifest
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add crypto_automation/archive.json
+          git commit -m "chore(crypto): update published archive manifest [skip ci]" || echo "No archive changes to commit"
+          git push
