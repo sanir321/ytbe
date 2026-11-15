@@ -8,6 +8,7 @@ import os
 import sys
 import json
 import re
+import time
 import urllib.request
 import urllib.parse
 from typing import Dict, Any, Optional
@@ -108,14 +109,23 @@ class RumbleAPI:
         filename = os.path.basename(video_abs)
         file_size = os.path.getsize(video_abs)
 
-        # 1. Upload Video Chunk/File using Filedata
+        # 1. Upload Video Chunk/File using Filedata (with 3-attempt backoff retry)
         upload_endpoint = f"{self.upload_host}/upload.php?api=1.3"
-        with open(video_abs, "rb") as f:
-            files = {"Filedata": (filename, f, "video/mp4")}
-            res = requests.post(upload_endpoint, headers=self.headers, cookies=self.cookies, files=files, timeout=300)
+        res = None
+        for attempt in range(1, 4):
+            try:
+                with open(video_abs, "rb") as f:
+                    files = {"Filedata": (filename, f, "video/mp4")}
+                    res = requests.post(upload_endpoint, headers=self.headers, cookies=self.cookies, files=files, timeout=300)
+                if res.status_code == 200 and res.text.strip():
+                    break
+            except Exception as e:
+                if attempt == 3:
+                    return {"ok": False, "error": f"Upload network error after 3 attempts: {str(e)}"}
+                time.sleep(2 * attempt)
 
-        if res.status_code != 200 or not res.text.strip():
-            return {"ok": False, "error": f"Upload endpoint failed with status {res.status_code}: {res.text[:200]}"}
+        if not res or res.status_code != 200 or not res.text.strip():
+            return {"ok": False, "error": f"Upload endpoint failed with status {getattr(res, 'status_code', 'None')}: {getattr(res, 'text', '')[:200]}"}
 
         video_token = res.text.strip()
         if "FAILED" in video_token or not re.match(r'^\d+-[0-9a-z]+\.[0-9a-z]+$', video_token, re.IGNORECASE):
@@ -125,11 +135,16 @@ class RumbleAPI:
         custom_thumb_token = None
         if custom_thumb_path and os.path.exists(custom_thumb_path):
             thumb_name = os.path.basename(custom_thumb_path)
-            with open(custom_thumb_path, "rb") as tf:
-                t_files = {"customThumb": (thumb_name, tf, "image/jpeg")}
-                t_res = requests.post(f"{self.upload_host}/upload.php?api=1.3&customThumb=1", headers=self.headers, cookies=self.cookies, files=t_files, timeout=60)
-                if t_res.status_code == 200:
-                    custom_thumb_token = t_res.text.strip()
+            for attempt in range(1, 3):
+                try:
+                    with open(custom_thumb_path, "rb") as tf:
+                        t_files = {"customThumb": (thumb_name, tf, "image/jpeg")}
+                        t_res = requests.post(f"{self.upload_host}/upload.php?api=1.3&customThumb=1", headers=self.headers, cookies=self.cookies, files=t_files, timeout=60)
+                        if t_res.status_code == 200:
+                            custom_thumb_token = t_res.text.strip()
+                            break
+                except Exception:
+                    time.sleep(2)
 
         # 3. Form Submit (Publish)
         form_endpoint = f"{self.upload_host}/upload.php?api=1.3&form=1"
@@ -156,7 +171,19 @@ class RumbleAPI:
         form_headers = dict(self.headers)
         form_headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-        pub_res = requests.post(form_endpoint, headers=form_headers, cookies=self.cookies, data=form_data, timeout=60)
+        pub_res = None
+        for attempt in range(1, 4):
+            try:
+                pub_res = requests.post(form_endpoint, headers=form_headers, cookies=self.cookies, data=form_data, timeout=60)
+                if pub_res.status_code == 200:
+                    break
+            except Exception as e:
+                if attempt == 3:
+                    return {"ok": False, "error": f"Form submit network error after 3 attempts: {str(e)}"}
+                time.sleep(2 * attempt)
+
+        if not pub_res:
+            return {"ok": False, "error": "Form submit failed to receive a response."}
         resp_text = pub_res.text
 
         # 4. Check for success response
