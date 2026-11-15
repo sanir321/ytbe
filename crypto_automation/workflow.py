@@ -37,15 +37,15 @@ def run_workflow(
     print("=" * 65)
 
     # 1. Step 1: Candidate Selection
-    candidate = None
+    candidates = []
     if youtube_id:
         print(f"🎯 Target video ID manually specified: {youtube_id}")
-        # Fetch real title via yt-dlp metadata
+        meta_cand = None
         try:
-            meta_json = os.popen(f"yt-dlp --dump-json 'https://www.youtube.com/watch?v={youtube_id}'").read().strip()
+            meta_json = os.popen(f"yt-dlp --remote-components ejs:github --dump-json 'https://www.youtube.com/watch?v={youtube_id}'").read().strip()
             if meta_json:
                 d = json.loads(meta_json)
-                candidate = {
+                meta_cand = {
                     "id": youtube_id,
                     "title": d.get("title", f"Viral Video {youtube_id}"),
                     "view_count": d.get("view_count", 0),
@@ -55,34 +55,50 @@ def run_workflow(
         except Exception:
             pass
 
-        if not candidate:
-            candidate = {
+        if not meta_cand:
+            meta_cand = {
                 "id": youtube_id,
                 "title": f"Viral Video {youtube_id}",
                 "view_count": 0,
                 "duration_str": "N/A",
                 "search_topic": topic or "manual"
             }
+        candidates = [meta_cand]
     else:
-        print("🔍 Searching for highest-performing viral candidate...")
-        candidate = pick_top_candidate(topic=topic)
-        if not candidate:
+        print("🔍 Searching for highest-performing viral candidates...")
+        topics = [topic] if topic else None
+        candidates = search_candidates(topics=topics)
+        if not candidates:
             print("⚠️ No new eligible candidates found. Archive may contain all recent queries.")
             return {"ok": False, "reason": "No eligible candidates found"}
 
-    yid = candidate["id"]
-    views_val = candidate.get("view_count", 0)
-    views_disp = f"{views_val:,}" if isinstance(views_val, (int, float)) else str(views_val)
-    print(f"\n🏆 Selected Candidate: [{yid}]")
-    print(f"📌 Raw Title: {candidate.get('title')}")
-    print(f"👀 View Count: {views_disp}")
-    print(f"⏱️ Duration: {candidate.get('duration_str', 'N/A')}")
-
-    # 2. Step 2: Download & Process Video
+    # 2. Step 2: Download & Process Video (with graceful fallback)
     print("\n" + "-" * 50)
     print("📥 STEP 2: DOWNLOADING 1080P SOURCE")
     print("-" * 50)
-    dl_res = download_video(yid)
+
+    candidate = None
+    dl_res = None
+    for cand in candidates:
+        yid = cand["id"]
+        views_val = cand.get("view_count", 0)
+        views_disp = f"{views_val:,}" if isinstance(views_val, (int, float)) else str(views_val)
+        print(f"\n🏆 Evaluating Candidate: [{yid}]")
+        print(f"📌 Title: {cand.get('title')}")
+        print(f"👀 Views: {views_disp} | ⏱️ Duration: {cand.get('duration_str', 'N/A')}")
+        try:
+            dl_res = download_video(yid)
+            candidate = cand
+            break
+        except Exception as e:
+            print(f"⚠️ Download failed for [{yid}]: {e}. Trying next candidate...")
+            continue
+
+    if not dl_res or not candidate:
+        print("❌ All candidate downloads failed.")
+        return {"ok": False, "reason": "All candidate downloads failed"}
+
+    yid = candidate["id"]
     raw_video_path = dl_res["raw_path"]
     clean_video_path = os.path.join(OUTPUT_DIR, f"{yid}_clean.mp4")
 

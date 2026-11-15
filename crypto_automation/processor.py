@@ -22,6 +22,7 @@ def download_video(youtube_id: str, output_prefix: Optional[str] = None) -> Dict
     print(f"📥 Downloading video {youtube_id}...")
     cmd = [
         "yt-dlp",
+        "--remote-components", "ejs:github",
         "-f", "bv*[ext=mp4][height<=1080]+ba[ext=m4a]/b[ext=mp4]/best",
         "--merge-output-format", "mp4",
         "-o", raw_path,
@@ -73,8 +74,9 @@ def process_and_trim(
     subprocess.run(cmd, check=True)
     return output_path
 
-def extract_keyframes(video_path: str, count: int = 3) -> list:
-    """Extracts keyframes at 15%, 50%, 75% for thumbnail generation."""
+def extract_keyframes(video_path: str, count: int = 5) -> list:
+    """Extracts candidate keyframes and ranks them by clarity & contrast."""
+    from PIL import Image, ImageStat
     probe_cmd = [
         "ffprobe", "-v", "error",
         "-show_entries", "format=duration",
@@ -82,12 +84,13 @@ def extract_keyframes(video_path: str, count: int = 3) -> list:
         video_path
     ]
     duration = float(subprocess.check_output(probe_cmd).decode().strip())
-    timestamps = [duration * 0.15, duration * 0.40, duration * 0.70]
-    keyframes = []
+    fractions = [0.15, 0.30, 0.50, 0.65, 0.80]
+    scored_frames = []
 
     base = os.path.splitext(video_path)[0]
-    for i, ts in enumerate(timestamps, 1):
-        kf_path = f"{base}_frame_{i}.jpg"
+    for i, frac in enumerate(fractions, 1):
+        ts = duration * frac
+        kf_path = f"{base}_kf_{i}.jpg"
         cmd = [
             "ffmpeg", "-y",
             "-ss", str(ts),
@@ -96,10 +99,18 @@ def extract_keyframes(video_path: str, count: int = 3) -> list:
             "-q:v", "2",
             kf_path
         ]
-        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        keyframes.append(kf_path)
+        try:
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            im = Image.open(kf_path)
+            stat = ImageStat.Stat(im)
+            score = stat.mean[0] * stat.stddev[0]
+            scored_frames.append((score, kf_path))
+        except Exception:
+            continue
 
-    return keyframes
+    # Sort descending by visual clarity score
+    scored_frames.sort(key=lambda x: x[0], reverse=True)
+    return [p for _, p in scored_frames]
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
