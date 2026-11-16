@@ -30,8 +30,8 @@
       "rumble_id": "v7i5scc",
       "rumble_fid": 450110406,
       "rumble_url": "https://rumble.com/v7i5scc-in-this-town-every-stroke-makes-you-twice-as-fast-shorts.html",
-      "total_boosted_views": 3450,
-      "last_boosted_at": "2026-11-16T14:56:03Z"
+      "total_boosted_views": 3750,
+      "last_boosted_at": "2026-11-16T18:02:34Z"
     },
     {
       "day": 2,
@@ -60,8 +60,8 @@
       "rumble_fid": 450196934,
       "rumble_status": "published",
       "rumble_published_at": "2026-11-11T23:30:52Z",
-      "total_boosted_views": 2850,
-      "last_boosted_at": "2026-11-16T14:56:59Z"
+      "total_boosted_views": 3150,
+      "last_boosted_at": "2026-11-16T18:04:25Z"
     },
     {
       "day": 3,
@@ -90,8 +90,8 @@
       "rumble_fid": 450198278,
       "rumble_status": "published",
       "rumble_published_at": "2026-11-11T23:50:20Z",
-      "total_boosted_views": 2550,
-      "last_boosted_at": "2026-11-16T14:57:55Z"
+      "total_boosted_views": 2850,
+      "last_boosted_at": "2026-11-16T18:06:15Z"
     },
     {
       "day": 4,
@@ -118,8 +118,8 @@
       "published_url": "https://youtube.com/shorts/v1xXSoYAbkE",
       "rumble_url": "https://rumble.com/v7id6fm-02-in-this-town-one-cereal-box-c-shorts.html",
       "rumble_fid": 450455260,
-      "total_boosted_views": 900,
-      "last_boosted_at": "2026-11-16T14:58:51Z"
+      "total_boosted_views": 1200,
+      "last_boosted_at": "2026-11-16T18:08:05Z"
     },
     {
       "day": 5,
@@ -147,8 +147,8 @@
       "rumble_fid": 450455302,
       "rumble_status": "published",
       "published_url": "https://youtube.com/shorts/auMEyrpWXCM",
-      "total_boosted_views": 900,
-      "last_boosted_at": "2026-11-16T14:59:46Z"
+      "total_boosted_views": 1200,
+      "last_boosted_at": "2026-11-16T18:09:55Z"
     },
     {
       "day": 6,
@@ -169,9 +169,10 @@
       ],
       "file_size_mb": 19.0,
       "scheduled_time": "2026-11-15 18:00 UTC",
-      "status": "queued",
-      "youtube_id": null,
-      "published_at": null
+      "status": "partially_published",
+      "youtube_id": "NnjX3zi_afc",
+      "published_at": "2026-11-16T18:00:35Z",
+      "published_url": "https://youtube.com/shorts/NnjX3zi_afc"
     },
     {
       "day": 7,
