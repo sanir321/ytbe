@@ -2,8 +2,8 @@ name: Daily Shorts Publisher (YouTube & Rumble)
 
 on:
   schedule:
-    # Evening viral publication & boost (18:00 UTC = 23:30 IST prime viral window)
-    - cron: '0 18 * * *'
+    # Evening viral publication & boost (19:00 UTC = 00:30 IST (Prime US/UK traffic) prime viral window)
+    - cron: '0 19 * * *'
     # Morning drip boost for all active videos (06:00 UTC = 11:30 IST)
     - cron: '0 6 * * *'
   workflow_dispatch:
