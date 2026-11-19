@@ -117,7 +117,7 @@ def upload_short(youtube, file_path, title, description, tags, privacy="public")
     print(f"[YOUTUBE SUCCESS] Uploaded: {video_url}")
     return video_id, video_url
 
-def upload_to_rumble(video_file, title, description, tags, channel_id="7985034", license_tier="6"):
+def upload_to_rumble(video_file, title, description, tags, channel_id="", license_tier="6"):
     if not RumbleAPI:
         print("[RUMBLE] RumbleAPI module not available. Skipping Rumble upload.")
         return None
@@ -402,7 +402,7 @@ def main():
     # 2. Rumble Upload
     if args.platform in ["all", "rumble"] and not target_entry.get("rumble_url"):
         try:
-            r_res = upload_to_rumble(video_file, title, description, tags, channel_id="7985034", license_tier="6")
+            r_res = upload_to_rumble(video_file, title, description, tags, channel_id="", license_tier="6")
             if r_res:
                 target_entry["rumble_url"] = r_res.get("url")
                 target_entry["rumble_fid"] = r_res.get("fid")

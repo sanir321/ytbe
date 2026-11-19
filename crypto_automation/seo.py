@@ -98,20 +98,36 @@ def generate_seo_metadata(candidate: Dict[str, Any]) -> Dict[str, Any]:
 
     rumble_title = format_rumble_title(raw_title, topic)
 
+    # Dynamic keyword optimization tailored for high Rumble CTR
+    low_title = raw_title.lower()
+    tag_set = [
+        "bitcoin", "crypto", "breaking news", "finance", "economy",
+        "sound money", "inflation", "market crash", "rumble viral", "2026"
+    ]
+    if "gold" in low_title or "silver" in low_title or "dollar" in low_title:
+        tag_set.extend(["gold", "silver", "dollar collapse", "federal reserve", "brics", "precious metals", "wealth protection"])
+    elif "senate" in low_title or "congress" in low_title or "hearing" in low_title or "grilling" in low_title:
+        tag_set.extend(["senate hearing", "congressional hearing", "cspan", "grilling", "heated debate", "oversight", "government"])
+    elif "saylor" in low_title or "microstrategy" in low_title:
+        tag_set.extend(["michael saylor", "microstrategy", "msci", "bitcoin bull run", "btc target", "institutional bitcoin"])
+    else:
+        tag_set.extend(["cryptocurrency", "altcoins", "coinbase", "sec", "monetary policy", "central banks"])
+
+    tags = ", ".join(dict.fromkeys(tag_set))
+
+    # Rich description with SEO keywords
     description = (
         f"{rumble_title}\n\n"
-        "Official uncut testimony and historic financial debate investigating sound money, "
-        "Federal Reserve currency expansion, public ledgers, and economic sovereignty.\n\n"
-        "📌 Key Themes:\n"
-        "• The integrity of fiat currency vs sound money\n"
-        "• Government oversight, monetary policy, and inflation\n"
-        "• Bitcoin, decentralized finance, and the future of value\n\n"
-        f"Original archive reference: {yid}\n"
-        "US Government proceedings and public debates are published under public domain / fair informative review.\n\n"
-        "#bitcoin #crypto #finance #banking #soundmoney #federalreserve #inflation #rumble #gold"
+        "🔥 Essential market update, breaking macroeconomic analysis, and critical insights into sound money, "
+        "Federal Reserve policy, currency debasement, and the digital financial revolution.\n\n"
+        "📌 Key Themes Covered:\n"
+        "• Institutional market dynamics & high-volume liquidations\n"
+        "• Fiat currency debasement vs Bitcoin & hard assets\n"
+        "• Government regulatory shifts, committee hearings & monetary reform\n\n"
+        f"Original archive reference: https://www.youtube.com/watch?v={yid}\n"
+        "Published for educational commentary, journalistic documentation, and public interest review.\n\n"
+        "#bitcoin #crypto #marketcrash #michaelsaylor #gold #inflation #federalreserve #soundmoney #finance #rumble"
     )
-
-    tags = "bitcoin, crypto, cryptocurrency, finance, banking, sound money, federal reserve, inflation, money, gold, rumble, btc, economics"
 
     # Extract punchy 2-line viral headline
     headline = extract_viral_headline(raw_title)
