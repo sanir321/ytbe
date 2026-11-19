@@ -8,7 +8,7 @@ name: SH SARKAR Daily Shorts Publisher (Free Fire)
   workflow_dispatch:
     inputs:
       day:
-        description: 'Specific Day to Publish (1-12) or "auto"'
+        description: 'Specific Day to Publish (1-330) or "auto"'
         required: true
         default: 'auto'
       privacy:
@@ -60,6 +60,7 @@ jobs:
           SARKAR_YT_CLIENT_ID: ${{ secrets.SARKAR_YT_CLIENT_ID }}
           SARKAR_YT_CLIENT_SECRET: ${{ secrets.SARKAR_YT_CLIENT_SECRET }}
           SARKAR_YT_REFRESH_TOKEN: ${{ secrets.SARKAR_YT_REFRESH_TOKEN }}
+          INSTAGRAM_COOKIES: ${{ secrets.INSTAGRAM_COOKIES }}
           GITHUB_ACTIONS: 'true'
         run: |
           CMD="python publish_sarkar.py"
