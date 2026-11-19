@@ -1,0 +1,114 @@
+name: Viral Shorts Remixer & Publisher (Auto Split Part 1 & 2)
+
+'on':
+  schedule:
+    # 14:00 UTC = 19:30 IST / 10:00 EST (Peak YouTube Shorts browsing window)
+    - cron: '0 14 * * *'
+    # 19:00 UTC = 00:30 IST / 15:00 EST (Prime US/UK viral evening window)
+    - cron: '0 19 * * *'
+
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Execution Mode (queue, target_id, or url)'
+        required: true
+        default: 'queue'
+        type: choice
+        options:
+          - queue
+          - target_id
+          - url
+      target_id:
+        description: 'Specific Reel ID from viral_queue.json (if mode is target_id)'
+        required: false
+        default: ''
+      url:
+        description: 'Direct Instagram Reel URL (if mode is url)'
+        required: false
+        default: ''
+      limit:
+        description: 'Number of queued videos to process (1-5)'
+        required: true
+        default: '1'
+      platform:
+        description: 'Target Platform'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - youtube
+          - rumble
+      privacy:
+        description: 'YouTube Privacy Setting'
+        required: true
+        default: 'public'
+        type: choice
+        options:
+          - public
+          - unlisted
+          - private
+      dry_run:
+        description: 'Dry Run (remix and verify metadata without uploading)'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  remix_and_publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install System Multimedia & Fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Execute Remixer & Publisher
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          RUMBLE_COOKIES_JSON: ${{ secrets.RUMBLE_COOKIES_JSON }}
+          GITHUB_ACTIONS: 'true'
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            CMD="python remix_and_publish.py --platform ${{ inputs.platform }} --privacy ${{ inputs.privacy }}"
+            
+            if [ "${{ inputs.mode }}" = "url" ] && [ -n "${{ inputs.url }}" ]; then
+              CMD="$CMD --url '${{ inputs.url }}'"
+            elif [ "${{ inputs.mode }}" = "target_id" ] && [ -n "${{ inputs.target_id }}" ]; then
+              CMD="$CMD --target-id '${{ inputs.target_id }}'"
+            else
+              CMD="$CMD --queue --limit ${{ inputs.limit }}"
+            fi
+            
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              CMD="$CMD --dry-run"
+            fi
+          else
+            # Scheduled daily run: process next item in queue, upload both parts to YouTube & Rumble
+            CMD="python remix_and_publish.py --queue --limit 1 --platform all --privacy public"
+          fi
+          
+          echo "Executing: $CMD"
+          eval $CMD

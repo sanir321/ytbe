@@ -4,3 +4,7 @@ __pycache__/
 *.log
 .env
 .DS_Store
+tmp_remix/
+*.mp4
+reauth_youtube.py
+
