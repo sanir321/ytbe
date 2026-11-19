@@ -112,6 +112,20 @@ def download_clip(url, target_path, source="instagram"):
     subprocess.run(cmd, check=True)
     return target_path
 
+def upscale_video_2k(raw_path, out_path):
+    print("[UPSCALE] Scaling to 1440x2560 (2K Quad-HD) with Lanczos + AMD CAS sharpening...")
+    cmd = [
+        "ffmpeg", "-y", "-i", raw_path,
+        "-vf", "scale=1440:2560:flags=lanczos,cas=strength=0.35",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "copy",
+        out_path
+    ]
+    subprocess.run(cmd, check=True)
+    print(f"[UPSCALE SUCCESS] Created 2K master: {out_path} ({os.path.getsize(out_path)/(1024*1024):.1f} MB)")
+    return out_path
+
 def remix_video(raw_path, out_path, channel_badge="★ GTA6_DS • DAILY CLIPS ★"):
     print("[REMIX] Applying 4-layer anti-detection remix filters...")
     ov = make_overlay_badge(channel_badge)
@@ -174,7 +188,7 @@ def upload_short(youtube, file_path, title, description, tags, privacy="public")
 def main():
     parser = argparse.ArgumentParser(description="GTA6_DS Daily YouTube Publisher")
     parser.add_argument("--day", default="auto", help="Day number to publish or 'auto'")
-    parser.add_argument("--mode", default="original", choices=["original", "remix"], help="Upload mode: 'original' (untouched 100% original quality) or 'remix' (anti-detection filter)")
+    parser.add_argument("--mode", default="original", choices=["original", "upscale", "remix"], help="Upload mode: 'original' (1080p raw untouched), 'upscale' (1440x2560 2K + CAS sharpen), or 'remix' (anti-detection filter)")
     parser.add_argument("--privacy", default="public", choices=["public", "unlisted", "private"], help="Privacy status")
     parser.add_argument("--dry-run", action="store_true", help="Simulate without uploading")
     args = parser.parse_args()
@@ -225,6 +239,10 @@ def main():
     if args.mode == "original":
         upload_path = raw_path
         print(f"[MODE] ORIGINAL QUALITY: Skipping re-encode to preserve 100% untouched native bitrate ({os.path.getsize(upload_path)/(1024*1024):.1f} MB)")
+    elif args.mode == "upscale":
+        upscaled_path = os.path.join(TMP_DIR, f"upscale_2k_gta6_day_{day_num}.mp4")
+        upscale_video_2k(raw_path, upscaled_path)
+        upload_path = upscaled_path
     else:
         remixed_path = os.path.join(TMP_DIR, f"remix_gta6_day_{day_num}.mp4")
         remix_video(raw_path, remixed_path)
