@@ -6,6 +6,7 @@ __pycache__/
 .DS_Store
 tmp_remix/
 tmp_remix_sarkar/
+tmp_remix_gta6/
 *.mp4
 reauth_youtube.py
 
