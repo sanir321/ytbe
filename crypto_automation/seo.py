@@ -18,8 +18,14 @@ def format_rumble_title(original_title: str, topic_badge: str) -> str:
         "congress": "[CONGRESSIONAL HEARING]",
         "hearing": "[FULL HEARING]",
         "clash": "[HISTORIC CLASH]",
+        "grilling": "[HEATED GRILLING]",
         "inflation": "[MONETARY TRUTH]",
-        "speech": "[UNCUT SPEECH]"
+        "gold": "[SOUND MONEY]",
+        "dollar": "[ECONOMIC WARNING]",
+        "collapse": "[ECONOMIC WARNING]",
+        "speech": "[UNCUT SPEECH]",
+        "uap": "[DECLASSIFIED TESTIMONY]",
+        "ufo": "[DECLASSIFIED TESTIMONY]"
     }
 
     chosen_badge = "[UNCUT TESTIMONY]"
@@ -113,10 +119,16 @@ def generate_seo_metadata(candidate: Dict[str, Any]) -> Dict[str, Any]:
     badge = "UNCUT TESTIMONY"
     if "vs" in raw_title.lower() or "clash" in raw_title.lower():
         badge = "HISTORIC CLASH"
+    elif "grilling" in raw_title.lower():
+        badge = "HEATED GRILLING"
     elif "senate" in raw_title.lower():
         badge = "SENATE HEARING"
     elif "congress" in raw_title.lower():
         badge = "CONGRESSIONAL HEARING"
+    elif "gold" in raw_title.lower() or "money" in raw_title.lower():
+        badge = "SOUND MONEY"
+    elif "dollar" in raw_title.lower() or "collapse" in raw_title.lower():
+        badge = "ECONOMIC WARNING"
 
     return {
         "title": rumble_title,

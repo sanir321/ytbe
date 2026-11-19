@@ -13,15 +13,30 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ARCHIVE_PATH = os.path.join(SCRIPT_DIR, "archive.json")
 
 DEFAULT_SEARCH_TOPICS = [
+    # 1. High-Impact Monetary & Sound Money Warnings
+    "ron paul federal reserve hearing is gold money",
+    "milton friedman understanding inflation",
+    "peter schiff dollar collapse inflation debate",
+    "federal reserve inflation hearing uncut powell",
+    "brics dollar collapse sound money debate",
+    "robert kiyosaki dollar collapse gold silver",
+    
+    # 2. Fiery Congressional & Senate Grillings (Public Domain / High Retention)
+    "rand paul fiery senate hearing grilling uncut",
+    "jim jordan fiery congress hearing uncut",
+    "ted cruz heated hearing uncut senate",
+    "house judiciary committee hearing heated clash",
+    "sec gary gensler crypto hearing highlights",
+    "cynthia lummis bitcoin speech senate",
     "bitcoin senate hearing uncut",
     "crypto congressional hearing full",
-    "ron paul federal reserve hearing is gold money",
-    "sec gary gensler crypto hearing highlights",
-    "milton friedman understanding inflation",
-    "cynthia lummis bitcoin speech senate",
-    "federal reserve inflation hearing uncut powell",
+    
+    # 3. High-Conviction Market Speeches & Whistleblowers
     "jack mallers bitcoin speech monetary revolution",
-    "peter van valkenburgh crypto hearing"
+    "peter van valkenburgh crypto hearing",
+    "pentagon uap congressional hearing uncut",
+    "altcoin daily michael saylor bitcoin",
+    "anthony pompliano blackrock bitcoin hearing"
 ]
 
 def load_archive() -> List[str]:
