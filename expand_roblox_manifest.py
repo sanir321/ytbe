@@ -74,6 +74,13 @@ HOOK_TITLES_BY_ACCOUNT = {
         "Moodly's Most Viral Skit 🎭🔥 #Shorts",
         "The Ultimate NPC Encounter 🤖💀 #Shorts",
         "When Lag Saves Your Life 📶🙌 #Shorts"
+    ],
+    "doinkclips": [
+        "In This Town, Nobody Smiles 😱🏙️ #Shorts",
+        "The Dark Secret of District 9 🚨🤫 #Shorts",
+        "Never Look The Mayor In The Eyes 👁️⚠️ #Shorts",
+        "The Hidden Rule of Block Street 🛑🏃 #Shorts",
+        "In This Town, Doors Lock From The Outside 🚪🔒 #Shorts"
     ]
 }
 
