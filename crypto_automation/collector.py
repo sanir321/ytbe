@@ -13,30 +13,20 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ARCHIVE_PATH = os.path.join(SCRIPT_DIR, "archive.json")
 
 DEFAULT_SEARCH_TOPICS = [
-    # 1. High-Impact Monetary & Sound Money Warnings
-    "ron paul federal reserve hearing is gold money",
-    "milton friedman understanding inflation",
-    "peter schiff dollar collapse inflation debate",
-    "federal reserve inflation hearing uncut powell",
-    "brics dollar collapse sound money debate",
-    "robert kiyosaki dollar collapse gold silver",
+    # 1. Recent Breaking News & Market Alerts (Filtered to This Month: &sp=EgQIBBAB)
+    "https://www.youtube.com/results?search_query=bitcoin+crypto+breaking+news&sp=EgQIBBAB",
+    "https://www.youtube.com/results?search_query=michael+saylor+bitcoin+prediction&sp=EgQIBBAB",
+    "https://www.youtube.com/results?search_query=crypto+market+crash+emergency&sp=EgQIBBAB",
+    "https://www.youtube.com/results?search_query=senate+hearing+heated+grilling&sp=EgQIBBAB",
+    "https://www.youtube.com/results?search_query=congressional+hearing+heated+clash&sp=EgQIBBAB",
+    "https://www.youtube.com/results?search_query=federal+reserve+inflation+rate+hearing&sp=EgQIBBAB",
+    "https://www.youtube.com/results?search_query=gold+silver+dollar+collapse+2026&sp=EgQIBBAB",
     
-    # 2. Fiery Congressional & Senate Grillings (Public Domain / High Retention)
-    "rand paul fiery senate hearing grilling uncut",
-    "jim jordan fiery congress hearing uncut",
-    "ted cruz heated hearing uncut senate",
-    "house judiciary committee hearing heated clash",
-    "sec gary gensler crypto hearing highlights",
-    "cynthia lummis bitcoin speech senate",
-    "bitcoin senate hearing uncut",
-    "crypto congressional hearing full",
-    
-    # 3. High-Conviction Market Speeches & Whistleblowers
-    "jack mallers bitcoin speech monetary revolution",
-    "peter van valkenburgh crypto hearing",
-    "pentagon uap congressional hearing uncut",
-    "altcoin daily michael saylor bitcoin",
-    "anthony pompliano blackrock bitcoin hearing"
+    # 2. Top High-View Channels (Feeds are strictly sorted newest first)
+    "https://www.youtube.com/@AltcoinDaily/videos",
+    "https://www.youtube.com/@CoinBureau/videos",
+    "https://www.youtube.com/@AnthonyPompliano/videos",
+    "https://www.youtube.com/@TheCryptoNutshell/videos"
 ]
 
 def load_archive() -> List[str]:
@@ -62,8 +52,13 @@ def search_candidates(
     seen_ids = set()
 
     for topic in topics:
-        query = f"ytsearch{max_per_topic}:{topic}"
-        cmd = ["yt-dlp", "--dump-json", "--flat-playlist", query]
+        if topic.startswith("http://") or topic.startswith("https://"):
+            cmd = ["yt-dlp", "--dump-json", "--flat-playlist", "--playlist-end", str(max_per_topic), topic]
+            topic_label = topic.split("search_query=")[-1].split("&")[0].replace("+", " ") if "search_query=" in topic else topic.split("@")[-1].replace("/videos", "")
+        else:
+            query = f"ytsearch{max_per_topic}:{topic}"
+            cmd = ["yt-dlp", "--dump-json", "--flat-playlist", query]
+            topic_label = topic
         try:
             res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=25)
             if res.returncode != 0:
@@ -95,7 +90,7 @@ def search_candidates(
                         "view_count": views,
                         "uploader": d.get("uploader", ""),
                         "url": f"https://www.youtube.com/watch?v={yid}",
-                        "search_topic": topic
+                        "search_topic": topic_label
                     })
                 except Exception:
                     continue

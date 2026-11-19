@@ -86,6 +86,18 @@ def run_workflow(
         print(f"\n🏆 Evaluating Candidate: [{yid}]")
         print(f"📌 Title: {cand.get('title')}")
         print(f"👀 Views: {views_disp} | ⏱️ Duration: {cand.get('duration_str', 'N/A')}")
+
+        # Strict Date Safeguard: Must be recent (2026 upload)
+        try:
+            date_check = os.popen(f"yt-dlp --print '%(upload_date)s' 'https://www.youtube.com/watch?v={yid}'").read().strip()
+            if date_check and len(date_check) == 8:
+                u_year = int(date_check[:4])
+                if u_year < 2026:
+                    print(f"⏩ Skipping [{yid}]: upload date is {date_check} (not a recent 2026 video)")
+                    continue
+                print(f"📅 Verified Upload Date: {date_check} (Recent 2026)")
+        except Exception:
+            pass
         try:
             dl_res = download_video(yid)
             candidate = cand
