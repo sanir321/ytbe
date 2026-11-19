@@ -120,13 +120,15 @@ def remix_video(raw_path, out_path, channel_badge="★ GTA6_DS • DAILY CLIPS �
     cmd = [
         "ffmpeg", "-y", "-i", raw_path, "-i", ov_path,
         "-filter_complex", (
-            "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,"
-            "eq=contrast=1.06:brightness=0.01:saturation=1.12[base];"
-            "[base][1:v]overlay=0:0[vout]"
+            "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,"
+            "eq=contrast=1.05:brightness=0.01:saturation=1.10[base];"
+            "[base][1:v]overlay=0:0[vout];"
+            "[0:a]atempo=1.025,volume=1.05[aout]"
         ),
-        "-filter:a", "atempo=1.025,volume=1.05",
-        "-map", "[vout]", "-map", "0:a",
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
+        "-map", "[vout]", "-map", "[aout]",
+        "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+        "-b:v", "10M", "-maxrate", "14M", "-bufsize", "20M",
+        "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "192k",
         "-t", "58",
         out_path
