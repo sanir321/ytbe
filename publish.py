@@ -176,10 +176,95 @@ def commit_and_push_manifest(manifest_path, day_num=None, action_note=None):
     res = subprocess.run(["git", "commit", "-m", commit_msg])
     if res.returncode == 0:
         print("[GIT] Pushing manifest update back to repository...")
+        subprocess.run(["git", "pull", "--rebase"])
         subprocess.run(["git", "push"], check=True)
         print("[GIT] Push completed successfully.")
     else:
         print("[GIT] No changes to commit.")
+
+def prepare_remix_video(entry):
+    from remix_and_publish import make_overlay, TMP_DIR, get_video_duration
+    
+    day_num = entry["day"]
+    part = entry.get("part", "single")
+    raw_path = None
+    acc = entry.get("account", "roblox").upper()
+    badge_label = f"@{acc} REMIX • LIKE & SUB"
+    title_clean = entry.get("title", f"Day {day_num}").split("#")[0].strip()
+    
+    # 1. Check local file cache
+    if entry.get("file_path") and os.path.exists(entry["file_path"]):
+        raw_path = entry["file_path"]
+    else:
+        print(f"[REMIX] Downloading reel on-the-fly from {entry['instagram_url']}...")
+        out_tmpl = os.path.join(TMP_DIR, f"raw_day_{day_num}.%(ext)s")
+        cmd = [
+            "yt-dlp", "--no-warnings",
+            "-f", "bestvideo+bestaudio/best",
+            "--merge-output-format", "mp4",
+            "-o", out_tmpl,
+            entry["instagram_url"]
+        ]
+        subprocess.run(cmd, check=True)
+        raw_path = os.path.join(TMP_DIR, f"raw_day_{day_num}.mp4")
+        
+    dur = entry.get("duration_s") or get_video_duration(raw_path)
+    out_path = os.path.join(TMP_DIR, f"day_{day_num}_remix.mp4")
+    
+    if part == "single":
+        ov = make_overlay(title_clean, bottom_badge=badge_label)
+        ov_path = os.path.join(TMP_DIR, f"ov_day_{day_num}.png")
+        ov.save(ov_path)
+        cmd = [
+            "ffmpeg", "-y", "-i", raw_path, "-i", ov_path,
+            "-filter_complex", "[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0[vout]",
+            "-filter:a", "atempo=1.02,volume=1.05",
+            "-map", "[vout]", "-map", "0:a",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+            "-c:a", "aac", "-b:a", "192k",
+            out_path
+        ]
+        subprocess.run(cmd, check=True)
+        
+    elif part == 1:
+        sp = entry.get("split_point") or min(58.0, round(dur / 2.0, 1))
+        cta_start = max(0, sp - 3.5)
+        ov_p1 = make_overlay(f"{title_clean}", bottom_badge=badge_label)
+        ov_p1_end = make_overlay(f"{title_clean}", bottom_badge=badge_label, cta_text="👉 WATCH PART 2 NEXT! (ON CHANNEL)")
+        ov1_path = os.path.join(TMP_DIR, f"ov1_day_{day_num}.png")
+        ov1_end_path = os.path.join(TMP_DIR, f"ov1_end_day_{day_num}.png")
+        ov_p1.save(ov1_path)
+        ov_p1_end.save(ov1_end_path)
+        cmd = [
+            "ffmpeg", "-y", "-ss", "0", "-to", str(sp), "-i", raw_path,
+            "-i", ov1_path, "-i", ov1_end_path,
+            "-filter_complex", f"[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0:enable='between(t,0,{cta_start})'[tmp];[tmp][2:v]overlay=0:0:enable='gte(t,{cta_start})'[vout]",
+            "-filter:a", "atempo=1.02,volume=1.05",
+            "-map", "[vout]", "-map", "0:a",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+            "-c:a", "aac", "-b:a", "192k",
+            out_path
+        ]
+        subprocess.run(cmd, check=True)
+        
+    elif part == 2:
+        sp = entry.get("split_point") or min(58.0, round(dur / 2.0, 1))
+        ov_p2 = make_overlay(f"{title_clean}", bottom_badge=badge_label)
+        ov2_path = os.path.join(TMP_DIR, f"ov2_day_{day_num}.png")
+        ov_p2.save(ov2_path)
+        cmd = [
+            "ffmpeg", "-y", "-ss", str(sp), "-i", raw_path,
+            "-i", ov2_path,
+            "-filter_complex", "[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0[vout]",
+            "-filter:a", "atempo=1.02,volume=1.05",
+            "-map", "[vout]", "-map", "0:a",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+            "-c:a", "aac", "-b:a", "192k",
+            out_path
+        ]
+        subprocess.run(cmd, check=True)
+        
+    return out_path
 
 def main():
     parser = argparse.ArgumentParser(description="Autonomous Multi-Platform Shorts Publisher")
@@ -254,10 +339,26 @@ def main():
             return 1
 
     day_num = target_entry["day"]
-    video_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), target_entry["video_file"])
     title = target_entry["title"]
     description = target_entry["description"]
     tags = target_entry["tags"]
+    temp_generated_file = None
+
+    if target_entry.get("type") == "instagram_remix":
+        if args.dry_run:
+            print(f"\n==========================================")
+            print(f"🎬 EXECUTING DUAL PUBLISH FOR DAY {day_num} (Instagram Remix)")
+            print(f"📌 Title: {title}")
+            print(f"🔗 Instagram URL: {target_entry.get('instagram_url')}")
+            print(f"🎭 Format/Part: {target_entry.get('part')} ({target_entry.get('duration_s')}s)")
+            print(f"🎯 Target Platform: {args.platform}")
+            print(f"==========================================\n")
+            print(f"[DRY-RUN] Verification complete for Day {day_num}. Skipping render & live upload.")
+            return 0
+        video_file = prepare_remix_video(target_entry)
+        temp_generated_file = video_file
+    else:
+        video_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), target_entry.get("video_file", ""))
 
     print(f"\n==========================================")
     print(f"🎬 EXECUTING DUAL PUBLISH FOR DAY {day_num}")
@@ -268,7 +369,8 @@ def main():
 
     if args.dry_run:
         print(f"[DRY-RUN] Verification complete. Video file exists: {os.path.exists(video_file)}")
-        print(f"[DRY-RUN] Size: {os.path.getsize(video_file) / (1024*1024):.1f} MB")
+        if os.path.exists(video_file):
+            print(f"[DRY-RUN] Size: {os.path.getsize(video_file) / (1024*1024):.1f} MB")
         print("[DRY-RUN] Skipping live API uploads.")
         return 0
 
@@ -325,6 +427,12 @@ def main():
         commit_and_push_manifest(manifest_path, day_num=day_num)
     else:
         print("[INFO] No new uploads or boosts performed.")
+
+    if temp_generated_file and os.path.exists(temp_generated_file):
+        try:
+            os.remove(temp_generated_file)
+        except Exception:
+            pass
 
     return 0
 
