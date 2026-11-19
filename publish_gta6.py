@@ -112,7 +112,7 @@ def download_clip(url, target_path, source="instagram"):
     subprocess.run(cmd, check=True)
     return target_path
 
-def check_is_horizontal(video_path):
+def get_video_dimensions(video_path):
     cmd = [
         "ffprobe", "-v", "error", "-select_streams", "v:0",
         "-show_entries", "stream=width,height", "-of", "csv=p=0", video_path
@@ -121,33 +121,25 @@ def check_is_horizontal(video_path):
         res = subprocess.run(cmd, stdout=subprocess.PIPE, text=True).stdout.strip()
         if res and "," in res:
             w, h = map(int, res.split(","))
-            return w > h, w, h
+            return w, h
     except Exception:
         pass
-    return False, 0, 0
-
-def convert_horizontal_to_short(raw_path, out_path):
-    print("[HORIZONTAL] Video is landscape! Converting to 1080x1920 vertical Short with Lanczos scaling...")
-    cmd = [
-        "ffmpeg", "-y", "-i", raw_path,
-        "-filter_complex", (
-            "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black[vout]"
-        ),
-        "-map", "[vout]", "-map", "0:a",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
-        "-pix_fmt", "yuv420p",
-        "-c:a", "copy",
-        out_path
-    ]
-    subprocess.run(cmd, check=True)
-    print(f"[CONVERT SUCCESS] Created 9:16 vertical Short: {out_path} ({os.path.getsize(out_path)/(1024*1024):.1f} MB)")
-    return out_path
+    return 1080, 1920
 
 def upscale_video_2k(raw_path, out_path):
-    print("[UPSCALE] Scaling to 1440x2560 (2K Quad-HD) with Lanczos + AMD CAS sharpening...")
+    w, h = get_video_dimensions(raw_path)
+    if w > h:
+        # Landscape video (16:9): upscale to 2560x1440 2K QHD (no conversion/cropping)
+        scale_filter = "scale=2560:1440:flags=lanczos,cas=strength=0.35"
+        print(f"[UPSCALE] Landscape video detected ({w}x{h}) -> Upscaling to native 2560x1440 2K QHD...")
+    else:
+        # Vertical video (9:16): upscale to 1440x2560 2K Vertical
+        scale_filter = "scale=1440:2560:flags=lanczos,cas=strength=0.35"
+        print(f"[UPSCALE] Vertical video detected ({w}x{h}) -> Upscaling to native 1440x2560 2K Vertical...")
+
     cmd = [
         "ffmpeg", "-y", "-i", raw_path,
-        "-vf", "scale=1440:2560:flags=lanczos,cas=strength=0.35",
+        "-vf", scale_filter,
         "-c:v", "libx264", "-preset", "fast", "-crf", "18",
         "-pix_fmt", "yuv420p",
         "-c:a", "copy",
@@ -219,7 +211,7 @@ def upload_short(youtube, file_path, title, description, tags, privacy="public")
 def main():
     parser = argparse.ArgumentParser(description="GTA6_DS Daily YouTube Publisher")
     parser.add_argument("--day", default="auto", help="Day number to publish or 'auto'")
-    parser.add_argument("--mode", default="original", choices=["original", "upscale", "remix"], help="Upload mode: 'original' (1080p raw untouched), 'upscale' (1440x2560 2K + CAS sharpen), or 'remix' (anti-detection filter)")
+    parser.add_argument("--mode", default="upscale", choices=["upscale", "original", "remix"], help="Upload mode: 'upscale' (default: 2K Quad-HD + AMD CAS sharpening), 'original' (raw untouched), or 'remix'")
     parser.add_argument("--privacy", default="public", choices=["public", "unlisted", "private"], help="Privacy status")
     parser.add_argument("--dry-run", action="store_true", help="Simulate without uploading")
     args = parser.parse_args()
@@ -281,18 +273,12 @@ def main():
     else:
         download_clip(target_entry["url"], raw_path, source=target_entry.get("source", "instagram"))
 
-    is_horiz, w, h = check_is_horizontal(raw_path)
-    if is_horiz:
-        print(f"[DETECT] Horizontal/landscape video detected ({w}x{h}). Auto-formatting to 9:16 vertical Short...")
-        horiz_out = os.path.join(TMP_DIR, f"vert_gta6_day_{day_num}.mp4")
-        upload_path = convert_horizontal_to_short(raw_path, horiz_out)
+    if args.mode == "upscale":
+        upscaled_path = os.path.join(TMP_DIR, f"upscale_2k_gta6_day_{day_num}.mp4")
+        upload_path = upscale_video_2k(raw_path, upscaled_path)
     elif args.mode == "original":
         upload_path = raw_path
         print(f"[MODE] ORIGINAL QUALITY: Skipping re-encode to preserve 100% untouched native bitrate ({os.path.getsize(upload_path)/(1024*1024):.1f} MB)")
-    elif args.mode == "upscale":
-        upscaled_path = os.path.join(TMP_DIR, f"upscale_2k_gta6_day_{day_num}.mp4")
-        upscale_video_2k(raw_path, upscaled_path)
-        upload_path = upscaled_path
     else:
         remixed_path = os.path.join(TMP_DIR, f"remix_gta6_day_{day_num}.mp4")
         remix_video(raw_path, remixed_path)
