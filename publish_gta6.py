@@ -112,6 +112,37 @@ def download_clip(url, target_path, source="instagram"):
     subprocess.run(cmd, check=True)
     return target_path
 
+def check_is_horizontal(video_path):
+    cmd = [
+        "ffprobe", "-v", "error", "-select_streams", "v:0",
+        "-show_entries", "stream=width,height", "-of", "csv=p=0", video_path
+    ]
+    try:
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, text=True).stdout.strip()
+        if res and "," in res:
+            w, h = map(int, res.split(","))
+            return w > h, w, h
+    except Exception:
+        pass
+    return False, 0, 0
+
+def convert_horizontal_to_short(raw_path, out_path):
+    print("[HORIZONTAL] Video is landscape! Converting to 1080x1920 vertical Short with Lanczos scaling...")
+    cmd = [
+        "ffmpeg", "-y", "-i", raw_path,
+        "-filter_complex", (
+            "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black[vout]"
+        ),
+        "-map", "[vout]", "-map", "0:a",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "copy",
+        out_path
+    ]
+    subprocess.run(cmd, check=True)
+    print(f"[CONVERT SUCCESS] Created 9:16 vertical Short: {out_path} ({os.path.getsize(out_path)/(1024*1024):.1f} MB)")
+    return out_path
+
 def upscale_video_2k(raw_path, out_path):
     print("[UPSCALE] Scaling to 1440x2560 (2K Quad-HD) with Lanczos + AMD CAS sharpening...")
     cmd = [
@@ -236,7 +267,12 @@ def main():
     else:
         download_clip(target_entry["url"], raw_path, source=target_entry.get("source", "instagram"))
 
-    if args.mode == "original":
+    is_horiz, w, h = check_is_horizontal(raw_path)
+    if is_horiz:
+        print(f"[DETECT] Horizontal/landscape video detected ({w}x{h}). Auto-formatting to 9:16 vertical Short...")
+        horiz_out = os.path.join(TMP_DIR, f"vert_gta6_day_{day_num}.mp4")
+        upload_path = convert_horizontal_to_short(raw_path, horiz_out)
+    elif args.mode == "original":
         upload_path = raw_path
         print(f"[MODE] ORIGINAL QUALITY: Skipping re-encode to preserve 100% untouched native bitrate ({os.path.getsize(upload_path)/(1024*1024):.1f} MB)")
     elif args.mode == "upscale":
