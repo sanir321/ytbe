@@ -47,14 +47,22 @@ def get_system_font(size):
                 pass
     return ImageFont.load_default()
 
-def make_overlay(title_text, bottom_badge="SH SARKAR  •  LIKE & SUBSCRIBE"):
+def clean_title_for_render(title):
+    # Strip complex emojis that cause font box artifacts in Linux fonts
+    import re
+    clean = re.sub(r'[^\w\s\-\:\.\,\!\?\#\⚡\★\•]', '', title)
+    return clean.strip()
+
+def make_overlay(title_text):
     img = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     font_title = get_system_font(38)
-    font_badge = get_system_font(22)
+    font_badge = get_system_font(24)
+    font_banner = get_system_font(28)
 
     # 1. Top Hook Title Header
-    bbox = font_title.getbbox(title_text)
+    clean_title = clean_title_for_render(title_text)
+    bbox = font_title.getbbox(clean_title)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     pad_x, pad_y = 36, 18
     bx0 = (1080 - tw) // 2 - pad_x
@@ -62,25 +70,38 @@ def make_overlay(title_text, bottom_badge="SH SARKAR  •  LIKE & SUBSCRIBE"):
     bx1 = (1080 + tw) // 2 + pad_x
     by1 = by0 + th + (pad_y * 2)
 
-    draw.rounded_rectangle([bx0-4, by0-4, bx1+4, by1+4], radius=22, fill=(0, 0, 0, 160))
-    draw.rounded_rectangle([bx0, by0, bx1, by1], radius=20, fill=(12, 12, 18, 240), outline=(0, 220, 255, 255), width=4)
+    draw.rounded_rectangle([bx0-4, by0-4, bx1+4, by1+4], radius=22, fill=(0, 0, 0, 180))
+    draw.rounded_rectangle([bx0, by0, bx1, by1], radius=20, fill=(12, 12, 18, 250), outline=(0, 220, 255, 255), width=4)
     draw.rounded_rectangle([bx0+4, by0+4, bx1-4, by1-4], radius=16, outline=(255, 215, 0, 160), width=2)
     
     tx = (1080 - tw) // 2
     ty = by0 + pad_y - bbox[1]
-    draw.text((tx+2, ty+2), title_text, font=font_title, fill=(0, 0, 0, 255))
-    draw.text((tx, ty), title_text, font=font_title, fill=(255, 255, 255, 255))
+    draw.text((tx+2, ty+2), clean_title, font=font_title, fill=(0, 0, 0, 255))
+    draw.text((tx, ty), clean_title, font=font_title, fill=(255, 255, 255, 255))
 
-    # 2. Bottom Right Watermark Concealment Badge
-    w_box = [570, 1800, 1060, 1870]
-    draw.rounded_rectangle([w_box[0]+2, w_box[1]+2, w_box[2]+2, w_box[3]+2], radius=14, fill=(0, 0, 0, 180))
-    draw.rounded_rectangle(w_box, radius=12, fill=(14, 14, 20, 245), outline=(0, 220, 255, 240), width=3)
-    
-    b_bbox = font_badge.getbbox(bottom_badge)
+    # 2. Watermark / Handle Concealment Banner (covers original @sameer_exc text at y=1365-1445)
+    wm_box = [200, 1365, 880, 1445]
+    draw.rounded_rectangle([wm_box[0]-4, wm_box[1]-4, wm_box[2]+4, wm_box[3]+4], radius=18, fill=(0, 0, 0, 255))
+    draw.rounded_rectangle(wm_box, radius=16, fill=(12, 12, 18, 255), outline=(255, 70, 70, 255), width=3)
+    wm_text = "★ SH SARKAR HIGHLIGHTS ★"
+    w_bbox = font_banner.getbbox(wm_text)
+    ww, wh = w_bbox[2] - w_bbox[0], w_bbox[3] - w_bbox[1]
+    wtx = wm_box[0] + (wm_box[2] - wm_box[0] - ww) // 2
+    wty = wm_box[1] + (wm_box[3] - wm_box[1] - wh) // 2 - w_bbox[1]
+    draw.text((wtx+2, wty+2), wm_text, font=font_banner, fill=(0, 0, 0, 255))
+    draw.text((wtx, wty), wm_text, font=font_banner, fill=(255, 255, 255, 255))
+
+    # 3. Bottom Centered Call-To-Action Pill
+    b_box = [280, 1790, 800, 1865]
+    draw.rounded_rectangle([b_box[0]-3, b_box[1]-3, b_box[2]+3, b_box[3]+3], radius=18, fill=(0, 0, 0, 200))
+    draw.rounded_rectangle(b_box, radius=16, fill=(14, 14, 22, 245), outline=(0, 220, 255, 240), width=3)
+    badge_text = "• SUBSCRIBE TO SH SARKAR •"
+    b_bbox = font_badge.getbbox(badge_text)
     bw, bh = b_bbox[2] - b_bbox[0], b_bbox[3] - b_bbox[1]
-    btx = w_box[0] + (w_box[2] - w_box[0] - bw) // 2
-    bty = w_box[1] + (w_box[3] - w_box[1] - bh) // 2 - b_bbox[1]
-    draw.text((btx, bty), bottom_badge, font=font_badge, fill=(255, 255, 255, 255))
+    btx = b_box[0] + (b_box[2] - b_box[0] - bw) // 2
+    bty = b_box[1] + (b_box[3] - b_box[1] - bh) // 2 - b_bbox[1]
+    draw.text((btx+2, bty+2), badge_text, font=font_badge, fill=(0, 0, 0, 255))
+    draw.text((btx, bty), badge_text, font=font_badge, fill=(255, 215, 0, 255))
 
     return img
 
@@ -142,10 +163,11 @@ def prepare_video(entry, day_num):
     cmd = [
         "ffmpeg", "-y", "-i", raw_path, "-i", ov_path,
         "-filter_complex", "[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0[vout]",
-        "-filter:a", "atempo=1.02,volume=1.05",
+        "-filter:a", "atempo=1.025,volume=1.05",
         "-map", "[vout]", "-map", "0:a",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
         "-c:a", "aac", "-b:a", "192k",
+        "-shortest",
         out_file
     ]
     subprocess.run(cmd, check=True)
