@@ -2,7 +2,9 @@ name: Daily GTA6_DS Shorts Publish
 
 on:
   schedule:
-    # Runs daily at 15:30 UTC (21:00 IST)
+    # Slot 1: 09:00 UTC (14:30 IST) - European afternoon & Indian midday peak
+    - cron: '0 9 * * *'
+    # Slot 2: 15:30 UTC (21:00 IST) - US morning & Indian evening peak
     - cron: '30 15 * * *'
   workflow_dispatch:
     inputs:

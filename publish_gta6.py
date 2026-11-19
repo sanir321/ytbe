@@ -231,12 +231,26 @@ def main():
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     if args.day == "auto":
-        # Check if already published today
+        # Check if already published today (allow max 2 Shorts per day, min 3.5 hours apart)
+        today_published = []
         for entry in schedule:
             pub_at = entry.get("published_at")
             if pub_at and pub_at.startswith(today_str):
-                print(f"[THROTTLE] A video was already published to GTA6_DS today ({today_str}). Skipping.")
-                return 0
+                today_published.append(entry)
+
+        if len(today_published) >= 2:
+            print(f"[THROTTLE] Already reached max 2 Shorts published today ({today_str}). Skipping.")
+            return 0
+
+        if len(today_published) == 1:
+            try:
+                last_pub = datetime.fromisoformat(today_published[-1]["published_at"])
+                hours_since = (datetime.now(timezone.utc) - last_pub).total_seconds() / 3600
+                if hours_since < 3.5:
+                    print(f"[THROTTLE] Only {hours_since:.1f} hours since last upload today. Need >= 3.5 hrs spacing. Skipping.")
+                    return 0
+            except Exception:
+                pass
 
         target_entry = None
         for entry in schedule:
