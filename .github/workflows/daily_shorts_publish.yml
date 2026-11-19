@@ -75,6 +75,7 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           RUMBLE_COOKIES_JSON: ${{ secrets.RUMBLE_COOKIES_JSON }}
+          INSTAGRAM_COOKIES: ${{ secrets.INSTAGRAM_COOKIES }}
           GITHUB_ACTIONS: 'true'
         run: |
           CMD="python publish.py"

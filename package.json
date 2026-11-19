@@ -1,0 +1,27 @@
+{
+  "name": "ytbe",
+  "version": "1.0.0",
+  "description": "Automated, cloud-native daily publishing system for 28 high-retention Roblox story shorts.",
+  "main": "scrape_roblox_accounts.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sanir321/ytbe.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/sanir321/ytbe/issues"
+  },
+  "homepage": "https://github.com/sanir321/ytbe#readme",
+  "dependencies": {
+    "puppeteer-core": "^25.18.1"
+  }
+}

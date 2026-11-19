@@ -9,3 +9,4 @@ tmp_remix_sarkar/
 *.mp4
 reauth_youtube.py
 
+node_modules/

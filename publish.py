@@ -198,13 +198,23 @@ def prepare_remix_video(entry):
     else:
         print(f"[REMIX] Downloading reel on-the-fly from {entry['instagram_url']}...")
         out_tmpl = os.path.join(TMP_DIR, f"raw_day_{day_num}.%(ext)s")
+        cookie_path = None
+        if os.environ.get("INSTAGRAM_COOKIES"):
+            cookie_path = "/tmp/gh_ig_cookies.txt"
+            with open(cookie_path, "w") as f:
+                f.write(os.environ["INSTAGRAM_COOKIES"])
+        elif os.path.exists("/home/samirkhadka/instagram_cookies.txt"):
+            cookie_path = "/home/samirkhadka/instagram_cookies.txt"
+
         cmd = [
             "yt-dlp", "--no-warnings",
             "-f", "bestvideo+bestaudio/best",
             "--merge-output-format", "mp4",
-            "-o", out_tmpl,
-            entry["instagram_url"]
+            "-o", out_tmpl
         ]
+        if cookie_path and os.path.exists(cookie_path):
+            cmd.extend(["--cookies", cookie_path])
+        cmd.append(entry["instagram_url"])
         subprocess.run(cmd, check=True)
         raw_path = os.path.join(TMP_DIR, f"raw_day_{day_num}.mp4")
         
