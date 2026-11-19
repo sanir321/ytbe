@@ -22,7 +22,7 @@ def download_video(youtube_id: str, output_prefix: Optional[str] = None) -> Dict
     print(f"📥 Downloading video {youtube_id}...")
     cmd = [
         "yt-dlp",
-        "--remote-components", "ejs:github",
+        "--extractor-args", "youtube:player_client=android,web",
         "-f", "bv*[ext=mp4][height<=1080]+ba[ext=m4a]/b[ext=mp4]/best",
         "--merge-output-format", "mp4",
         "-o", raw_path,

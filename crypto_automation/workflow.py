@@ -42,7 +42,7 @@ def run_workflow(
         print(f"🎯 Target video ID manually specified: {youtube_id}")
         meta_cand = None
         try:
-            meta_json = os.popen(f"yt-dlp --remote-components ejs:github --dump-json 'https://www.youtube.com/watch?v={youtube_id}'").read().strip()
+            meta_json = os.popen(f"yt-dlp --extractor-args 'youtube:player_client=android,web' --dump-json 'https://www.youtube.com/watch?v={youtube_id}'").read().strip()
             if meta_json:
                 d = json.loads(meta_json)
                 meta_cand = {
