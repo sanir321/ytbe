@@ -12,6 +12,7 @@ import re
 import argparse
 import subprocess
 from datetime import datetime, timezone
+import shutil
 from PIL import Image, ImageDraw, ImageFont
 
 from googleapiclient.discovery import build
@@ -173,6 +174,7 @@ def upload_short(youtube, file_path, title, description, tags, privacy="public")
 def main():
     parser = argparse.ArgumentParser(description="GTA6_DS Daily YouTube Publisher")
     parser.add_argument("--day", default="auto", help="Day number to publish or 'auto'")
+    parser.add_argument("--mode", default="original", choices=["original", "remix"], help="Upload mode: 'original' (untouched 100% original quality) or 'remix' (anti-detection filter)")
     parser.add_argument("--privacy", default="public", choices=["public", "unlisted", "private"], help="Privacy status")
     parser.add_argument("--dry-run", action="store_true", help="Simulate without uploading")
     args = parser.parse_args()
@@ -209,15 +211,24 @@ def main():
 
     day_num = target_entry["day"]
     print(f"\n==========================================")
-    print(f"🎬 Processing GTA6_DS Day {day_num}: {target_entry['title']}")
+    print(f"🎬 Processing GTA6_DS Day {day_num} [{args.mode.upper()} QUALITY]: {target_entry['title']}")
     print(f"🔗 Source URL: {target_entry['url']}")
     print(f"==========================================\n")
 
     raw_path = os.path.join(TMP_DIR, f"raw_gta6_day_{day_num}.mp4")
-    download_clip(target_entry["url"], raw_path, source=target_entry.get("source", "instagram"))
+    # If a pre-cached sample exists, copy it
+    if not os.path.exists(raw_path) and os.path.exists("/tmp/gta6_sample.mp4") and day_num == 1:
+        shutil.copy2("/tmp/gta6_sample.mp4", raw_path)
+    else:
+        download_clip(target_entry["url"], raw_path, source=target_entry.get("source", "instagram"))
 
-    remixed_path = os.path.join(TMP_DIR, f"remix_gta6_day_{day_num}.mp4")
-    remix_video(raw_path, remixed_path)
+    if args.mode == "original":
+        upload_path = raw_path
+        print(f"[MODE] ORIGINAL QUALITY: Skipping re-encode to preserve 100% untouched native bitrate ({os.path.getsize(upload_path)/(1024*1024):.1f} MB)")
+    else:
+        remixed_path = os.path.join(TMP_DIR, f"remix_gta6_day_{day_num}.mp4")
+        remix_video(raw_path, remixed_path)
+        upload_path = remixed_path
 
     if args.dry_run:
         print("[DRY-RUN] Finished render. Skipping upload.")
@@ -225,7 +236,7 @@ def main():
 
     yt = get_authenticated_service()
     vid_id, vid_url = upload_short(
-        yt, remixed_path,
+        yt, upload_path,
         target_entry["title"],
         target_entry["description"],
         target_entry["tags"],
