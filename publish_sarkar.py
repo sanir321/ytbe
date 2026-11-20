@@ -170,16 +170,42 @@ def prepare_video(entry, day_num):
     ov.save(ov_path)
 
     out_file = os.path.join(TMP_DIR, f"sarkar_day_{day_num}.mp4")
-    cmd = [
-        "ffmpeg", "-y", "-i", raw_path, "-i", ov_path,
-        "-filter_complex", "[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0[vout]",
-        "-filter:a", "atempo=1.025,volume=1.05",
-        "-map", "[vout]", "-map", "0:a",
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
-        "-c:a", "aac", "-b:a", "192k",
-        "-shortest",
-        out_file
-    ]
+
+    # Check if source video contains an audio stream
+    has_audio = False
+    try:
+        probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=codec_type", "-of", "csv=p=0", raw_path],
+            capture_output=True, text=True
+        )
+        has_audio = bool(probe.stdout.strip())
+    except Exception:
+        pass
+
+    if has_audio:
+        cmd = [
+            "ffmpeg", "-y", "-i", raw_path, "-i", ov_path,
+            "-filter_complex", "[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0[vout]",
+            "-filter:a", "atempo=1.025,volume=1.05",
+            "-map", "[vout]", "-map", "0:a",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+            "-c:a", "aac", "-b:a", "192k",
+            "-shortest",
+            out_file
+        ]
+    else:
+        print("[AUDIO] No source audio detected. Synthesizing stereo track for YouTube Shorts...")
+        cmd = [
+            "ffmpeg", "-y", "-i", raw_path, "-i", ov_path,
+            "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+            "-filter_complex", "[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0[vout]",
+            "-map", "[vout]", "-map", "2:a",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+            "-c:a", "aac", "-b:a", "128k",
+            "-shortest",
+            out_file
+        ]
+
     subprocess.run(cmd, check=True)
     return out_file
 
