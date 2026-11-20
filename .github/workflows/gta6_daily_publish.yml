@@ -26,6 +26,9 @@ on:
           - unlisted
           - private
 
+permissions:
+  contents: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest

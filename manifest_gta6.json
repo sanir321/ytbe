@@ -80,10 +80,10 @@
       "video_id": "Df5DRtZgcak",
       "url": "https://www.instagram.com/reel/Df5DRtZgcak/",
       "scheduled_time": "2026-11-20 15:30 UTC",
-      "status": "queued",
-      "youtube_id": null,
-      "published_url": null,
-      "published_at": null
+      "status": "published",
+      "youtube_id": "Oci4zgF91Fc",
+      "published_url": "https://youtube.com/shorts/Oci4zgF91Fc",
+      "published_at": "2026-11-20T12:34:22.000000+00:00"
     },
     {
       "day": 4,
