@@ -58,10 +58,11 @@
         "freestyle"
       ],
       "scheduled_time": "2026-11-20 11:00 UTC",
-      "status": "published",
+      "status": "deleted_no_audio",
       "youtube_id": "Ad-pxcjV5cQ",
-      "published_url": "https://youtube.com/shorts/Ad-pxcjV5cQ",
-      "published_at": "2026-11-20T11:51:18.916648+00:00"
+      "published_url": null,
+      "published_at": "2026-11-20T11:51:18.916648+00:00",
+      "deleted_at": "2026-11-20T11:56:57.895025+00:00"
     },
     {
       "day": 3,
