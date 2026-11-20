@@ -61,7 +61,7 @@ def get_authenticated_service():
     else:
         raise RuntimeError("No valid YouTube credentials found in environment or local pickle file.")
 
-def make_overlay_badge(channel_badge="★ GTA6_DS • DAILY CLIPS ★"):
+def make_overlay_badge(title_hook="", channel_badge="★ GTA6_DS • DAILY 2K CLIPS ★"):
     img = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
@@ -69,19 +69,45 @@ def make_overlay_badge(channel_badge="★ GTA6_DS • DAILY CLIPS ★"):
     if not os.path.exists(font_path):
         font_path = "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
 
-    font = ImageFont.truetype(font_path, 40)
-    bbox = draw.textbbox((0, 0), channel_badge, font=font)
-    tw = bbox[2] - bbox[0]
-    th = bbox[3] - bbox[1]
-    
-    # Bottom banner positioning (y=1770 to cover previous clipper handles)
-    x = (1080 - tw) // 2
-    y = 1770
+    font_title = ImageFont.truetype(font_path, 42)
+    font_badge = ImageFont.truetype(font_path, 28)
 
-    # Draw neon Vice City rounded pill box
-    box_coords = [x - 30, y - 12, x + tw + 30, y + th + 16]
-    draw.rounded_rectangle(box_coords, radius=18, fill=(0, 0, 0, 220), outline=(255, 45, 85, 255), width=4)
-    draw.text((x, y), channel_badge, font=font, fill=(255, 255, 255, 255))
+    # 1. Top Hook Banner (Neon Vice City Hot Pink + Cyan inner outline)
+    clean_hook = re.sub(r'[^\w\s\-\:\.\,\!\?\#\⚡\★\•\💀\🔥\🌴\🚨]', '', title_hook).strip()
+    if clean_hook:
+        bbox = font_title.getbbox(clean_hook)
+        tw = bbox[2] - bbox[0]
+        th = bbox[3] - bbox[1]
+        bx0 = (1080 - tw) // 2 - 32
+        by0 = 140
+        bx1 = (1080 + tw) // 2 + 32
+        by1 = by0 + th + 36
+
+        # Draw glowing Vice City rounded box
+        draw.rounded_rectangle([bx0-4, by0-4, bx1+4, by1+4], radius=22, fill=(0, 0, 0, 180))
+        draw.rounded_rectangle([bx0, by0, bx1, by1], radius=20, fill=(12, 10, 18, 245), outline=(255, 45, 85, 255), width=4)
+        draw.rounded_rectangle([bx0+5, by0+5, bx1-5, by1-5], radius=15, outline=(0, 240, 255, 180), width=2)
+
+        tx = (1080 - tw) // 2
+        ty = by0 + 18 - bbox[1]
+        draw.text((tx+3, ty+3), clean_hook, font=font_title, fill=(0, 0, 0, 255))
+        draw.text((tx, ty), clean_hook, font=font_title, fill=(255, 255, 255, 255))
+
+    # 2. Bottom Banner positioning (y=1780 to cover previous clipper handles)
+    w_bbox = font_badge.getbbox(channel_badge)
+    ww = w_bbox[2] - w_bbox[0]
+    wh = w_bbox[3] - w_bbox[1]
+    wx0 = (1080 - ww) // 2 - 28
+    wy0 = 1780
+    wx1 = (1080 + ww) // 2 + 28
+    wy1 = wy0 + wh + 28
+
+    draw.rounded_rectangle([wx0-3, wy0-3, wx1+3, wy1+3], radius=18, fill=(0, 0, 0, 200))
+    draw.rounded_rectangle([wx0, wy0, wx1, wy1], radius=16, fill=(14, 12, 22, 245), outline=(0, 240, 255, 240), width=3)
+    wtx = (1080 - ww) // 2
+    wty = wy0 + 14 - w_bbox[1]
+    draw.text((wtx+2, wty+2), channel_badge, font=font_badge, fill=(0, 0, 0, 255))
+    draw.text((wtx, wty), channel_badge, font=font_badge, fill=(255, 215, 0, 255))
 
     return img
 
@@ -149,9 +175,9 @@ def upscale_video_2k(raw_path, out_path):
     print(f"[UPSCALE SUCCESS] Created 2K master: {out_path} ({os.path.getsize(out_path)/(1024*1024):.1f} MB)")
     return out_path
 
-def remix_video(raw_path, out_path, channel_badge="★ GTA6_DS • DAILY CLIPS ★"):
-    print("[REMIX] Applying 4-layer anti-detection remix filters...")
-    ov = make_overlay_badge(channel_badge)
+def remix_video(raw_path, out_path, title_hook="", channel_badge="★ GTA6_DS • DAILY 2K CLIPS ★"):
+    print(f"[REMIX] Applying 4-layer anti-detection remix filters with Neon Hook: '{title_hook}'...")
+    ov = make_overlay_badge(title_hook, channel_badge)
     ov_path = os.path.join(TMP_DIR, "ov_gta6_temp.png")
     ov.save(ov_path)
 
@@ -211,7 +237,7 @@ def upload_short(youtube, file_path, title, description, tags, privacy="public")
 def main():
     parser = argparse.ArgumentParser(description="GTA6_DS Daily YouTube Publisher")
     parser.add_argument("--day", default="auto", help="Day number to publish or 'auto'")
-    parser.add_argument("--mode", default="upscale", choices=["upscale", "original", "remix"], help="Upload mode: 'upscale' (default: 2K Quad-HD + AMD CAS sharpening), 'original' (raw untouched), or 'remix'")
+    parser.add_argument("--mode", default="remix", choices=["remix", "upscale", "original"], help="Upload mode: 'remix' (default: Vice City neon hook + anti-detection + 2K badge), 'upscale' (2K Quad-HD + AMD CAS), or 'original' (raw)")
     parser.add_argument("--privacy", default="public", choices=["public", "unlisted", "private"], help="Privacy status")
     parser.add_argument("--dry-run", action="store_true", help="Simulate without uploading")
     args = parser.parse_args()
@@ -281,7 +307,8 @@ def main():
         print(f"[MODE] ORIGINAL QUALITY: Skipping re-encode to preserve 100% untouched native bitrate ({os.path.getsize(upload_path)/(1024*1024):.1f} MB)")
     else:
         remixed_path = os.path.join(TMP_DIR, f"remix_gta6_day_{day_num}.mp4")
-        remix_video(raw_path, remixed_path)
+        clean_hook = re.sub(r'[^\w\s\-\:\.\,\!\?]', '', target_entry["title"].split("#")[0]).strip().upper()[:36]
+        remix_video(raw_path, remixed_path, title_hook=clean_hook)
         upload_path = remixed_path
 
     if args.dry_run:
