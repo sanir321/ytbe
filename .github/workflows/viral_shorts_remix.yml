@@ -1,11 +1,11 @@
 name: Viral Shorts Remixer & Publisher (Auto Split Part 1 & 2)
 
 'on':
-  schedule:
-    # 14:00 UTC = 19:30 IST / 10:00 EST (Peak YouTube Shorts browsing window)
-    - cron: '0 14 * * *'
-    # 19:00 UTC = 00:30 IST / 15:00 EST (Prime US/UK viral evening window)
-    - cron: '0 19 * * *'
+# Disabling automated schedule: cloud runners cannot anonymously download from Instagram without cookies.
+# Use workflow_dispatch with direct URLs or run locally where Instagram cookies/files exist.
+#   schedule:
+#     - cron: '0 14 * * *'
+#     - cron: '0 19 * * *'
 
   workflow_dispatch:
     inputs:
