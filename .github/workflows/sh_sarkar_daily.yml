@@ -2,17 +2,36 @@ name: SH SARKAR Daily Shorts Publisher (Free Fire)
 
 'on':
   schedule:
-    # 11:15 UTC = 16:45 IST / 17:00 NPT (Off-zero minute to avoid GitHub Actions cron delays)
-    - cron: '15 11 * * *'
-    # Backup retry slot (auto-skipped if already published today)
-    - cron: '45 12 * * *'
+    # Slot 1: 06:30 UTC = 12:00 IST / 12:15 NPT (Lunchtime Free Fire gaming peak)
+    - cron: '30 6 * * *'
+    # Slot 2: 12:30 UTC = 18:00 IST / 18:15 NPT (Evening Free Fire gaming peak)
+    - cron: '30 12 * * *'
+    # Fallback retry slots (automatically throttled if already 2 published today)
+    - cron: '15 7 * * *'
+    - cron: '15 13 * * *'
 
   workflow_dispatch:
     inputs:
+      action:
+        description: 'Action (publish or delete)'
+        required: true
+        default: 'publish'
+        type: choice
+        options:
+          - publish
+          - delete
       day:
         description: 'Specific Day to Publish (1-330) or "auto"'
-        required: true
+        required: false
         default: 'auto'
+      count:
+        description: 'Number of videos to publish (1 or 2)'
+        required: false
+        default: '1'
+      delete_id:
+        description: 'YouTube Video ID to delete (if action is delete)'
+        required: false
+        default: ''
       privacy:
         description: 'YouTube Video Privacy'
         required: true
@@ -65,15 +84,17 @@ jobs:
           INSTAGRAM_COOKIES: ${{ secrets.INSTAGRAM_COOKIES }}
           GITHUB_ACTIONS: 'true'
         run: |
-          CMD="python publish_sarkar.py"
-          
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            CMD="$CMD --day ${{ inputs.day }} --privacy ${{ inputs.privacy }}"
-            if [ "${{ inputs.dry_run }}" = "true" ]; then
-              CMD="$CMD --dry-run"
+            if [ "${{ inputs.action }}" = "delete" ] && [ -n "${{ inputs.delete_id }}" ]; then
+              CMD="python publish_sarkar.py --delete '${{ inputs.delete_id }}'"
+            else
+              CMD="python publish_sarkar.py --day '${{ inputs.day }}' --count '${{ inputs.count }}' --privacy '${{ inputs.privacy }}'"
+              if [ "${{ inputs.dry_run }}" = "true" ]; then
+                CMD="$CMD --dry-run"
+              fi
             fi
           else
-            CMD="$CMD --day auto --privacy public"
+            CMD="python publish_sarkar.py --day auto --count 1 --privacy public"
           fi
           
           echo "Executing: $CMD"

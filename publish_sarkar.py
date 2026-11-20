@@ -182,32 +182,31 @@ def prepare_video(entry, day_num):
     except Exception:
         pass
 
-    if has_audio:
-        cmd = [
-            "ffmpeg", "-y", "-i", raw_path, "-i", ov_path,
-            "-filter_complex", "[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0[vout]",
-            "-filter:a", "atempo=1.025,volume=1.05",
-            "-map", "[vout]", "-map", "0:a",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
-            "-c:a", "aac", "-b:a", "192k",
-            "-shortest",
-            out_file
-        ]
-    else:
-        print("[AUDIO] No source audio detected. Synthesizing stereo track for YouTube Shorts...")
-        cmd = [
-            "ffmpeg", "-y", "-i", raw_path, "-i", ov_path,
-            "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
-            "-filter_complex", "[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0[vout]",
-            "-map", "[vout]", "-map", "2:a",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
-            "-c:a", "aac", "-b:a", "128k",
-            "-shortest",
-            out_file
-        ]
+    if not has_audio:
+        print(f"[REJECT] Day {day_num} ({entry.get('reel_id')}) has NO AUDIO TRACK. Skipping per policy.")
+        return None
 
+    cmd = [
+        "ffmpeg", "-y", "-i", raw_path, "-i", ov_path,
+        "-filter_complex", "[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0[vout]",
+        "-filter:a", "atempo=1.025,volume=1.05",
+        "-map", "[vout]", "-map", "0:a",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+        "-c:a", "aac", "-b:a", "192k",
+        "-shortest",
+        out_file
+    ]
     subprocess.run(cmd, check=True)
     return out_file
+
+def delete_video(youtube, video_id):
+    try:
+        youtube.videos().delete(id=video_id).execute()
+        print(f"[YOUTUBE DELETED] Successfully deleted video {video_id} from SH SARKAR.")
+        return True
+    except Exception as e:
+        print(f"[ERROR] Failed to delete video {video_id}: {e}")
+        return False
 
 def upload_short(youtube, file_path, title, description, tags, privacy="public"):
     body = {
@@ -263,95 +262,104 @@ def commit_manifest():
 
 def main():
     parser = argparse.ArgumentParser(description="SH SARKAR Daily Shorts Publisher")
-    parser.add_argument("--day", default="auto", help="Day number (1-12) or 'auto'")
+    parser.add_argument("--day", default="auto", help="Day number (1-330) or 'auto'")
     parser.add_argument("--privacy", default="public", choices=["public", "unlisted", "private"])
     parser.add_argument("--dry-run", action="store_true", help="Remix without uploading")
-    parser.add_argument("--force", action="store_true", help="Force upload even if not due")
+    parser.add_argument("--force", action="store_true", help="Force upload even if daily limit reached")
+    parser.add_argument("--delete", default=None, help="Video ID to delete from channel")
+    parser.add_argument("--count", type=int, default=1, help="Number of videos to publish in this run (1 or 2)")
     args = parser.parse_args()
 
     with open(MANIFEST_FILE, "r") as f:
         manifest = json.load(f)
     schedule = manifest.get("schedule", [])
 
-    target_entry = None
-    if args.day == "auto":
-        now_utc = datetime.now(timezone.utc)
-        today_utc = now_utc.strftime("%Y-%m-%d")
-
-        already_published_today = any(
-            (e.get("published_at") or "").startswith(today_utc)
-            for e in schedule
-            if e.get("status") == "published"
-        )
-        if already_published_today and not args.force:
-            print(f"[THROTTLE] A video was already published to SH SARKAR today ({today_utc}). Skipping to maintain 1/day schedule.")
-            return 0
-
-        for entry in schedule:
-            if entry.get("status") == "queued":
-                sched_str = entry.get("scheduled_time", "")
-                if sched_str and not args.force:
-                    try:
-                        sched_dt = datetime.strptime(sched_str, "%Y-%m-%d %H:%M %Z").replace(tzinfo=timezone.utc)
-                        if now_utc < sched_dt:
-                            print(f"[SCHEDULE] Day {entry['day']} is scheduled for {sched_str}. Not due yet.")
-                            break
-                    except Exception:
-                        pass
-                target_entry = entry
-                break
-        if not target_entry:
-            print("[INFO] All scheduled videos in manifest_sarkar.json have already been published!")
-            return 0
-    else:
-        day_val = int(args.day)
-        for entry in schedule:
-            if entry.get("day") == day_val:
-                target_entry = entry
-                break
-        if not target_entry:
-            print(f"[ERROR] Day {args.day} not found in manifest_sarkar.json!")
-            return 1
-
-    day_num = target_entry["day"]
-    title = target_entry["title"]
-    desc = target_entry["description"]
-    tags = target_entry["tags"]
-
-    print(f"\n==========================================")
-    print(f"🎬 EXECUTING SH SARKAR PUBLISH FOR DAY {day_num}")
-    print(f"📌 Title: {title}")
-    print(f"🔗 Instagram URL: {target_entry.get('instagram_url')}")
-    print(f"🎯 Scheduled Time: {target_entry.get('scheduled_time')}")
-    print(f"==========================================\n")
-
-    if args.dry_run:
-        print(f"[DRY-RUN] Verification complete for Day {day_num}.")
-        print("[DRY-RUN] Skipping live render & API upload.")
+    # Case 0: Direct Deletion
+    if args.delete:
+        yt = get_authenticated_service()
+        deleted = delete_video(yt, args.delete)
+        if deleted:
+            for entry in schedule:
+                if entry.get("youtube_id") == args.delete:
+                    entry["status"] = "deleted_no_audio"
+                    entry["deleted_at"] = datetime.now(timezone.utc).isoformat()
+                    entry["published_url"] = None
+                    print(f"[MANIFEST] Marked Day {entry.get('day')} ({entry.get('reel_id')}) as deleted_no_audio.")
+            with open(MANIFEST_FILE, "w") as f:
+                json.dump(manifest, f, indent=2)
+            commit_manifest()
         return 0
 
-    remixed_video = prepare_video(target_entry, day_num)
-    yt = get_authenticated_service()
-    video_id, video_url = upload_short(yt, remixed_video, title, desc, tags, privacy=args.privacy)
+    now_utc = datetime.now(timezone.utc)
+    today_utc = now_utc.strftime("%Y-%m-%d")
 
-    target_entry["status"] = "published"
-    target_entry["youtube_id"] = video_id
-    target_entry["published_url"] = video_url
-    target_entry["published_at"] = datetime.now(timezone.utc).isoformat()
+    # 2 videos per day policy
+    max_daily = 2
+    published_today = [
+        e for e in schedule
+        if e.get("status") == "published" and (e.get("published_at") or "").startswith(today_utc)
+    ]
+    if len(published_today) >= max_daily and not args.force:
+        print(f"[THROTTLE] Already published {len(published_today)}/{max_daily} videos to SH SARKAR today ({today_utc}). Skipping to maintain 2/day schedule.")
+        return 0
+
+    to_publish = min(args.count, max_daily - len(published_today)) if not args.force else args.count
+    published_count = 0
+    yt = None if args.dry_run else get_authenticated_service()
+
+    for entry in schedule:
+        if published_count >= to_publish:
+            break
+        if entry.get("status") != "queued":
+            continue
+
+        day_num = entry["day"]
+        if args.day != "auto" and str(day_num) != str(args.day):
+            continue
+
+        print(f"\n==========================================")
+        print(f"🎬 EVALUATING SH SARKAR CANDIDATE: DAY {day_num} ({entry.get('reel_id')})")
+        print(f"📌 Title: {entry['title']}")
+        print(f"🔗 Instagram URL: {entry.get('instagram_url')}")
+        print(f"==========================================\n")
+
+        remixed_video = prepare_video(entry, day_num)
+        if remixed_video is None:
+            # Video rejected due to missing audio
+            entry["status"] = "skipped_no_audio"
+            entry["skipped_at"] = datetime.now(timezone.utc).isoformat()
+            print(f"⚠️ Day {day_num} skipped (no audio track). Advancing to next queued candidate...")
+            continue
+
+        if args.dry_run:
+            print(f"[DRY-RUN] Verification complete for Day {day_num}. (Skipping API upload)")
+            published_count += 1
+            continue
+
+        title = entry["title"]
+        desc = entry["description"]
+        tags = entry["tags"]
+        video_id, video_url = upload_short(yt, remixed_video, title, desc, tags, privacy=args.privacy)
+
+        entry["status"] = "published"
+        entry["youtube_id"] = video_id
+        entry["published_url"] = video_url
+        entry["published_at"] = datetime.now(timezone.utc).isoformat()
+        published_count += 1
+
+        if os.path.exists(remixed_video):
+            try:
+                os.remove(remixed_video)
+            except Exception:
+                pass
+
+        print(f"🎉 Day {day_num} successfully published to SH SARKAR: {video_url}")
 
     with open(MANIFEST_FILE, "w") as f:
         json.dump(manifest, f, indent=2)
-    print(f"💾 Updated {MANIFEST_FILE} for Day {day_num}.")
+    print(f"💾 Updated {MANIFEST_FILE} ({published_count} new video(s) published).")
 
     commit_manifest()
-
-    if os.path.exists(remixed_video):
-        try:
-            os.remove(remixed_video)
-        except Exception:
-            pass
-
-    print(f"🎉 Day {day_num} successfully published to SH SARKAR: {video_url}")
     return 0
 
 if __name__ == "__main__":
