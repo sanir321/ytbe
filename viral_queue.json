@@ -1,6 +1,6 @@
 {
   "total_items": 87,
-  "ready_items": 86,
+  "ready_items": 84,
   "single_shorts_count": 20,
   "split_parts_count": 67,
   "items": [
@@ -47,7 +47,16 @@
       "format": "Split Part 1 & Part 2 (>60s)",
       "file_path": "/home/samirkhadka/moodlyvines/Df11vYcCvbb.mp4",
       "instagram_url": "https://www.instagram.com/reel/Df11vYcCvbb/",
-      "status": "queued_ready_to_remix"
+      "status": "published",
+      "published_at": "2026-11-20T21:39:11.840256+00:00",
+      "part1": {
+        "youtube": "https://youtube.com/shorts/gWWsG9k8lzk",
+        "rumble": null
+      },
+      "part2": {
+        "youtube": "https://youtube.com/shorts/618N2_WeXJI",
+        "rumble": null
+      }
     },
     {
       "account": "moodlyvines",
@@ -1058,5 +1067,5 @@
       "status": "queued_ready_to_remix"
     }
   ],
-  "published_items": 1
+  "published_items": 2
 }
