@@ -104,12 +104,39 @@ def download_instagram_video(url, out_prefix):
         "--merge-output-format", "mp4",
         "--write-info-json",
         "-o", out_tmpl,
-        url
     ]
-    subprocess.run(cmd, check=True)
-    fpath = os.path.join(TMP_DIR, f"{out_prefix}.mp4")
-    info_path = os.path.join(TMP_DIR, f"{out_prefix}.info.json")
     
+    # Cookie detection for local and cloud environments
+    cookies_path = None
+    if os.environ.get("INSTAGRAM_COOKIES_FILE") and os.path.exists(os.environ["INSTAGRAM_COOKIES_FILE"]):
+        cookies_path = os.environ["INSTAGRAM_COOKIES_FILE"]
+    elif os.path.exists("/home/samirkhadka/instagram_cookies.txt"):
+        cookies_path = "/home/samirkhadka/instagram_cookies.txt"
+    elif os.environ.get("INSTAGRAM_COOKIES"):
+        tmp_c = os.path.join(TMP_DIR, "ig_cookies.txt")
+        try:
+            with open(tmp_c, "w") as cf:
+                cf.write(os.environ["INSTAGRAM_COOKIES"])
+            cookies_path = tmp_c
+        except Exception:
+            pass
+
+    if cookies_path:
+        cmd.extend(["--cookies", cookies_path])
+
+    cmd.append(url)
+    
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"[WARN] Failed to download {url}: {e}")
+        return None, "", "", 0.0
+
+    fpath = os.path.join(TMP_DIR, f"{out_prefix}.mp4")
+    if not os.path.exists(fpath):
+        return None, "", "", 0.0
+
+    info_path = os.path.join(TMP_DIR, f"{out_prefix}.info.json")
     desc, title = "", f"Roblox Story ({out_prefix})"
     if os.path.exists(info_path):
         try:
@@ -153,6 +180,11 @@ def process_target(target_item, target_url, yt, args, queue_data):
     else:
         print(f"⬇️ Downloading video from Instagram: {target_url}")
         raw_path, dl_title, desc, dur = download_instagram_video(target_url, prefix)
+        if not raw_path or not os.path.exists(raw_path):
+            print(f"⚠️ Source video unavailable or removed on Instagram: {target_url}")
+            if target_item:
+                target_item["status"] = "unavailable"
+            return False
         if not target_item or not target_item.get("title"):
             title = dl_title
 
@@ -294,6 +326,7 @@ def process_target(target_item, target_url, yt, args, queue_data):
                 os.remove(f)
             except Exception:
                 pass
+    return True
 
 def main():
     parser = argparse.ArgumentParser(description="Viral Shorts Remixer & Publisher")
@@ -337,13 +370,14 @@ def main():
         processed_count = 0
         for item in queue_data.get("items", []):
             if item.get("status") == "queued_ready_to_remix":
-                process_target(item, item["instagram_url"], yt, args, queue_data)
-                processed_count += 1
-                if processed_count >= args.limit:
-                    break
+                ok = process_target(item, item["instagram_url"], yt, args, queue_data)
+                if ok:
+                    processed_count += 1
+                    if processed_count >= args.limit:
+                        break
         
         if processed_count == 0:
-            print("[INFO] No pending items with status 'queued_ready_to_remix' found.")
+            print("[INFO] No pending items processed.")
             return 0
 
     if not args.dry_run:

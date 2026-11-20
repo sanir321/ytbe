@@ -1,11 +1,9 @@
 name: Viral Shorts Remixer & Publisher (Auto Split Part 1 & 2)
 
 'on':
-# Disabling automated schedule: cloud runners cannot anonymously download from Instagram without cookies.
-# Use workflow_dispatch with direct URLs or run locally where Instagram cookies/files exist.
-#   schedule:
-#     - cron: '0 14 * * *'
-#     - cron: '0 19 * * *'
+  schedule:
+    - cron: '0 14 * * *'
+    - cron: '0 19 * * *'
 
   workflow_dispatch:
     inputs:
@@ -83,12 +81,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Setup Instagram Cookies
+        env:
+          INSTAGRAM_COOKIES: ${{ secrets.INSTAGRAM_COOKIES }}
+        run: |
+          if [ -n "$INSTAGRAM_COOKIES" ]; then
+            echo "$INSTAGRAM_COOKIES" > /tmp/instagram_cookies.txt
+            echo "INSTAGRAM_COOKIES_FILE=/tmp/instagram_cookies.txt" >> $GITHUB_ENV
+            echo "✅ Instagram cookies configured ($(wc -l < /tmp/instagram_cookies.txt) lines)."
+          else
+            echo "⚠️ No INSTAGRAM_COOKIES secret found."
+          fi
+
       - name: Execute Remixer & Publisher
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           RUMBLE_COOKIES_JSON: ${{ secrets.RUMBLE_COOKIES_JSON }}
+          INSTAGRAM_COOKIES: ${{ secrets.INSTAGRAM_COOKIES }}
+          INSTAGRAM_COOKIES_FILE: /tmp/instagram_cookies.txt
           GITHUB_ACTIONS: 'true'
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
