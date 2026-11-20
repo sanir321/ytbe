@@ -88,7 +88,10 @@
         "freestyle"
       ],
       "scheduled_time": "2026-11-20 06:30 UTC",
-      "status": "queued"
+      "status": "published",
+      "youtube_id": "yo4Eq6r9bKY",
+      "published_url": "https://youtube.com/shorts/yo4Eq6r9bKY",
+      "published_at": "2026-11-20T11:59:08.328769+00:00"
     },
     {
       "day": 4,
@@ -114,7 +117,10 @@
         "freestyle"
       ],
       "scheduled_time": "2026-11-20 12:30 UTC",
-      "status": "queued"
+      "status": "published",
+      "youtube_id": "ehBm52sqNaE",
+      "published_url": "https://youtube.com/shorts/ehBm52sqNaE",
+      "published_at": "2026-11-20T11:59:19.736557+00:00"
     },
     {
       "day": 5,
