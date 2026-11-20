@@ -30,8 +30,8 @@
       "rumble_id": "v7i5scc",
       "rumble_fid": 450110406,
       "rumble_url": "https://rumble.com/v7i5scc-in-this-town-every-stroke-makes-you-twice-as-fast-shorts.html",
-      "total_boosted_views": 6450,
-      "last_boosted_at": "2026-11-20T14:59:04Z",
+      "total_boosted_views": 6750,
+      "last_boosted_at": "2026-11-20T18:03:09Z",
       "pinned_comment": "What would YOU do if you lived in this town? Comment below! 👇"
     },
     {
@@ -61,8 +61,8 @@
       "rumble_fid": 450196934,
       "rumble_status": "published",
       "rumble_published_at": "2026-11-11T23:30:52Z",
-      "total_boosted_views": 5850,
-      "last_boosted_at": "2026-11-20T14:59:58Z",
+      "total_boosted_views": 6150,
+      "last_boosted_at": "2026-11-20T18:05:01Z",
       "pinned_comment": "What would YOU do if you lived in this town? Comment below! 👇"
     },
     {
@@ -92,8 +92,8 @@
       "rumble_fid": 450198278,
       "rumble_status": "published",
       "rumble_published_at": "2026-11-11T23:50:20Z",
-      "total_boosted_views": 5550,
-      "last_boosted_at": "2026-11-20T15:00:53Z",
+      "total_boosted_views": 5850,
+      "last_boosted_at": "2026-11-20T18:06:52Z",
       "pinned_comment": "What would YOU do if you lived in this town? Comment below! 👇"
     },
     {
@@ -121,8 +121,8 @@
       "published_url": "https://youtube.com/shorts/v1xXSoYAbkE",
       "rumble_url": "https://rumble.com/v7id6fm-02-in-this-town-one-cereal-box-c-shorts.html",
       "rumble_fid": 450455260,
-      "total_boosted_views": 3900,
-      "last_boosted_at": "2026-11-20T15:01:47Z",
+      "total_boosted_views": 4200,
+      "last_boosted_at": "2026-11-20T18:08:44Z",
       "pinned_comment": "What would YOU do if you lived in this town? Comment below! 👇"
     },
     {
@@ -151,8 +151,8 @@
       "rumble_fid": 450455302,
       "rumble_status": "published",
       "published_url": "https://youtube.com/shorts/auMEyrpWXCM",
-      "total_boosted_views": 3900,
-      "last_boosted_at": "2026-11-20T15:02:41Z",
+      "total_boosted_views": 4200,
+      "last_boosted_at": "2026-11-20T18:10:35Z",
       "pinned_comment": "What would YOU do if you lived in this town? Comment below! 👇"
     },
     {
@@ -183,8 +183,8 @@
       "rumble_fid": 450662400,
       "rumble_status": "published",
       "rumble_published_at": "2026-11-17T18:00:44Z",
-      "total_boosted_views": 2250,
-      "last_boosted_at": "2026-11-20T15:03:36Z"
+      "total_boosted_views": 2550,
+      "last_boosted_at": "2026-11-20T18:12:27Z"
     },
     {
       "day": 7,
@@ -214,8 +214,8 @@
       "rumble_fid": 450692438,
       "rumble_status": "published",
       "rumble_published_at": "2026-11-18T01:32:46Z",
-      "total_boosted_views": 1950,
-      "last_boosted_at": "2026-11-20T15:04:30Z"
+      "total_boosted_views": 2250,
+      "last_boosted_at": "2026-11-20T18:14:19Z"
     },
     {
       "day": 8,
@@ -245,8 +245,8 @@
       "rumble_fid": 450773928,
       "rumble_status": "published",
       "rumble_published_at": "2026-11-19T01:00:41Z",
-      "total_boosted_views": 1200,
-      "last_boosted_at": "2026-11-20T15:05:25Z"
+      "total_boosted_views": 1500,
+      "last_boosted_at": "2026-11-20T18:16:10Z"
     },
     {
       "day": 9,
@@ -267,10 +267,11 @@
       ],
       "file_size_mb": 41.1,
       "scheduled_time": "2026-11-20 14:00 UTC",
-      "status": "queued",
-      "youtube_id": null,
-      "published_at": null,
-      "pinned_comment": "What would YOU do if you lived in this town? Comment below! 👇"
+      "status": "partially_published",
+      "youtube_id": "0hCAYUBCnyA",
+      "published_at": "2026-11-20T18:01:05Z",
+      "pinned_comment": "What would YOU do if you lived in this town? Comment below! 👇",
+      "published_url": "https://youtube.com/shorts/0hCAYUBCnyA"
     },
     {
       "day": 10,
