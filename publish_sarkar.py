@@ -152,16 +152,22 @@ def prepare_video(entry, day_num):
         elif os.path.exists("/home/samirkhadka/instagram_cookies.txt"):
             cookie_path = "/home/samirkhadka/instagram_cookies.txt"
 
-        cmd = [
+        download_cmd = [
             "yt-dlp", "--no-warnings",
             "-f", "bestvideo+bestaudio/best",
             "--merge-output-format", "mp4",
             "-o", out_tmpl
         ]
+        downloaded = False
         if cookie_path and os.path.exists(cookie_path):
-            cmd.extend(["--cookies", cookie_path])
-        cmd.append(entry["instagram_url"])
-        subprocess.run(cmd, check=True)
+            try:
+                subprocess.run(download_cmd + ["--cookies", cookie_path, entry["instagram_url"]], check=True)
+                downloaded = True
+            except subprocess.CalledProcessError as e:
+                print(f"[RETRY] Download with cookies failed ({e}). Retrying without cookies...")
+
+        if not downloaded:
+            subprocess.run(download_cmd + [entry["instagram_url"]], check=True)
         raw_path = os.path.join(TMP_DIR, f"raw_day_{day_num}.mp4")
 
     clean_title = entry["title"].split("#")[0].strip()
@@ -323,7 +329,13 @@ def main():
         print(f"🔗 Instagram URL: {entry.get('instagram_url')}")
         print(f"==========================================\n")
 
-        remixed_video = prepare_video(entry, day_num)
+        try:
+            remixed_video = prepare_video(entry, day_num)
+        except Exception as e:
+            print(f"⚠️ Error preparing Day {day_num} ({e}). Marking failed and advancing to next queued candidate...")
+            entry["status"] = "download_failed"
+            entry["error"] = str(e)
+            continue
         if remixed_video is None:
             # Video rejected due to missing audio
             entry["status"] = "skipped_no_audio"

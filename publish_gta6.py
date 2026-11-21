@@ -125,17 +125,20 @@ def download_clip(url, target_path, source="instagram"):
     elif os.path.exists(COOKIES_FILE):
         cookie_path = COOKIES_FILE
 
-    cmd = [
+    base_cmd = [
         "yt-dlp", "--no-warnings",
         "-f", "bestvideo+bestaudio/best",
         "--merge-output-format", "mp4",
         "-o", target_path
     ]
     if source == "instagram" and cookie_path and os.path.exists(cookie_path):
-        cmd.extend(["--cookies", cookie_path])
-    cmd.append(url)
+        try:
+            subprocess.run(base_cmd + ["--cookies", cookie_path, url], check=True)
+            return target_path
+        except subprocess.CalledProcessError as e:
+            print(f"[RETRY] Instagram cookie download failed ({e}). Retrying without cookies...")
 
-    subprocess.run(cmd, check=True)
+    subprocess.run(base_cmd + [url], check=True)
     return target_path
 
 def get_video_dimensions(video_path):
