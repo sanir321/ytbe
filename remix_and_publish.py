@@ -129,8 +129,17 @@ def download_instagram_video(url, out_prefix):
     try:
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as e:
-        print(f"[WARN] Failed to download {url}: {e}")
-        return None, "", "", 0.0
+        print(f"[WARN] Failed to download {url} with cookies: {e}")
+        if cookies_path:
+            print("[FALLBACK] Retrying download anonymously without cookies...")
+            anon_cmd = [c for c in cmd if c not in ["--cookies", cookies_path]]
+            try:
+                subprocess.run(anon_cmd, check=True)
+            except subprocess.CalledProcessError as err2:
+                print(f"[ERROR] Anonymous download also failed: {err2}")
+                return None, "", "", 0.0
+        else:
+            return None, "", "", 0.0
 
     fpath = os.path.join(TMP_DIR, f"{out_prefix}.mp4")
     if not os.path.exists(fpath):
