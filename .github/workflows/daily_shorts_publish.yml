@@ -80,15 +80,16 @@ jobs:
         run: |
           CMD="python publish.py"
           
-          if [ "${{ github.event_name }}" = "schedule" ] && [ "${{ github.event.schedule }}" = "0 6 * * *" ]; then
-            CMD="python publish.py --day boost-only --boost-count 150"
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            # Cloud Booster only: boost existing catalog without uploading extra videos
+            CMD="python publish.py --day boost-only --boost-count 200"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             CMD="$CMD --day ${{ inputs.day }} --platform ${{ inputs.platform }} --privacy ${{ inputs.privacy }} --boost-count ${{ inputs.boost_count }}"
             if [ "${{ inputs.dry_run }}" = "true" ]; then
               CMD="$CMD --dry-run"
             fi
           else
-            CMD="$CMD --day auto --platform all --privacy public --boost-count 300"
+            CMD="python publish.py --day boost-only --boost-count 200"
           fi
           
           echo "Running: $CMD"
