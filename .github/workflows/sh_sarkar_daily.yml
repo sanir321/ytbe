@@ -1,6 +1,6 @@
 name: SH SARKAR Daily Shorts Publisher (Free Fire)
 
-'on':
+on:
   schedule:
     # Slot 1: 06:30 UTC = 12:00 IST / 12:15 NPT (Lunchtime Free Fire gaming peak)
     - cron: '30 6 * * *'
