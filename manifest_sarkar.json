@@ -233,7 +233,10 @@
         "freestyle"
       ],
       "scheduled_time": "2026-11-22 12:30 UTC",
-      "status": "queued"
+      "status": "published",
+      "youtube_id": "7sJVYaz51jg",
+      "published_url": "https://youtube.com/shorts/7sJVYaz51jg",
+      "published_at": "2026-11-22T15:16:20.987100+00:00"
     },
     {
       "day": 9,
