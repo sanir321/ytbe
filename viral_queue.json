@@ -1,6 +1,6 @@
 {
   "total_items": 87,
-  "ready_items": 83,
+  "ready_items": 82,
   "single_shorts_count": 20,
   "split_parts_count": 67,
   "items": [
@@ -89,7 +89,16 @@
       "format": "Split Part 1 & Part 2 (>60s)",
       "file_path": "/home/samirkhadka/instagram_library/robloxstoriesevryday/Df2npf6TCxf.mp4",
       "instagram_url": "https://www.instagram.com/reel/Df2npf6TCxf/",
-      "status": "queued_ready_to_remix"
+      "status": "published",
+      "published_at": "2026-11-23T07:31:18.269380+00:00",
+      "part1": {
+        "youtube": "https://youtube.com/shorts/eX6GBK3Hxv4",
+        "rumble": null
+      },
+      "part2": {
+        "youtube": "https://youtube.com/shorts/6NSioUViQCA",
+        "rumble": null
+      }
     },
     {
       "account": "robloxstoriesevryday",
@@ -1076,5 +1085,5 @@
       "status": "queued_ready_to_remix"
     }
   ],
-  "published_items": 3
+  "published_items": 4
 }
