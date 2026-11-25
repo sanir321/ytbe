@@ -379,7 +379,8 @@
         "gloowall"
       ],
       "scheduled_time": "2026-11-25 06:30 UTC",
-      "status": "queued"
+      "status": "download_failed",
+      "error": "Command '['yt-dlp', '--no-warnings', '-f', 'bestvideo+bestaudio/best', '--merge-output-format', 'mp4', '-o', '/home/runner/work/ytbe/ytbe/tmp_remix_sarkar/raw_day_13.%(ext)s', 'https://www.instagram.com/reel/Df2KfAoR8mS/']' returned non-zero exit status 1."
     },
     {
       "day": 14,
@@ -406,7 +407,10 @@
         "gloowall"
       ],
       "scheduled_time": "2026-11-25 12:30 UTC",
-      "status": "queued"
+      "status": "published",
+      "youtube_id": "DFiWyrsSXsc",
+      "published_url": "https://youtube.com/shorts/DFiWyrsSXsc",
+      "published_at": "2026-11-25T17:31:45.892826+00:00"
     },
     {
       "day": 15,
