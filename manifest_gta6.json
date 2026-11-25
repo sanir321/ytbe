@@ -593,7 +593,7 @@
       "video_id": "Df4zkocyF5N",
       "url": "https://www.instagram.com/reel/Df4zkocyF5N/",
       "scheduled_time": "2026-11-30 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -620,7 +620,7 @@
       "video_id": "Df6XF1SgAkO",
       "url": "https://www.instagram.com/reel/Df6XF1SgAkO/",
       "scheduled_time": "2026-11-30 15:30 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -647,7 +647,7 @@
       "video_id": "Df6T2bzABsw",
       "url": "https://www.instagram.com/reel/Df6T2bzABsw/",
       "scheduled_time": "2026-12-01 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -674,7 +674,7 @@
       "video_id": "Df6TiuYg-9H",
       "url": "https://www.instagram.com/reel/Df6TiuYg-9H/",
       "scheduled_time": "2026-12-01 15:30 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -701,7 +701,7 @@
       "video_id": "Df6PAYDIrdT",
       "url": "https://www.instagram.com/reel/Df6PAYDIrdT/",
       "scheduled_time": "2026-12-02 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -728,7 +728,7 @@
       "video_id": "Df6OrkmoShl",
       "url": "https://www.instagram.com/reel/Df6OrkmoShl/",
       "scheduled_time": "2026-12-02 15:30 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -755,7 +755,7 @@
       "video_id": "Df5WFvnMvu8",
       "url": "https://www.instagram.com/reel/Df5WFvnMvu8/",
       "scheduled_time": "2026-12-03 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -782,7 +782,7 @@
       "video_id": "Df5UaYCsTi7",
       "url": "https://www.instagram.com/reel/Df5UaYCsTi7/",
       "scheduled_time": "2026-12-03 15:30 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -809,7 +809,7 @@
       "video_id": "Df5TnBnsT-u",
       "url": "https://www.instagram.com/reel/Df5TnBnsT-u/",
       "scheduled_time": "2026-12-04 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -836,7 +836,7 @@
       "video_id": "Df5PaCqg22J",
       "url": "https://www.instagram.com/reel/Df5PaCqg22J/",
       "scheduled_time": "2026-12-04 15:30 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -863,7 +863,7 @@
       "video_id": "Df4wbbjAZzh",
       "url": "https://www.instagram.com/reel/Df4wbbjAZzh/",
       "scheduled_time": "2026-12-05 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -890,7 +890,7 @@
       "video_id": "Df4v3yhgt0Y",
       "url": "https://www.instagram.com/reel/Df4v3yhgt0Y/",
       "scheduled_time": "2026-12-05 15:30 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -917,7 +917,7 @@
       "video_id": "Df4vIPjA0u2",
       "url": "https://www.instagram.com/reel/Df4vIPjA0u2/",
       "scheduled_time": "2026-12-06 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -944,10 +944,10 @@
       "video_id": "Df6QM0-TK4h",
       "url": "https://www.instagram.com/reel/Df6QM0-TK4h/",
       "scheduled_time": "2026-12-06 15:30 UTC",
-      "status": "queued",
-      "youtube_id": null,
-      "published_url": null,
-      "published_at": null
+      "status": "published",
+      "youtube_id": "zutEk4AGLlw",
+      "published_url": "https://youtube.com/shorts/zutEk4AGLlw",
+      "published_at": "2026-11-25T19:16:52.641984+00:00"
     },
     {
       "day": 36,
