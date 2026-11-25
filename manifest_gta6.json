@@ -269,7 +269,7 @@
       "video_id": "Df4_8FXyj1e",
       "url": "https://www.instagram.com/reel/Df4_8FXyj1e/",
       "scheduled_time": "2026-11-24 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -296,7 +296,7 @@
       "video_id": "Df5gd91SnZh",
       "url": "https://www.instagram.com/reel/Df5gd91SnZh/",
       "scheduled_time": "2026-11-24 15:30 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -323,7 +323,7 @@
       "video_id": "Df5d9gJyJU-",
       "url": "https://www.instagram.com/reel/Df5d9gJyJU-/",
       "scheduled_time": "2026-11-25 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -350,7 +350,7 @@
       "video_id": "Df5aXwNy8mK",
       "url": "https://www.instagram.com/reel/Df5aXwNy8mK/",
       "scheduled_time": "2026-11-25 15:30 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -377,7 +377,7 @@
       "video_id": "Df4_cjDyx7T",
       "url": "https://www.instagram.com/reel/Df4_cjDyx7T/",
       "scheduled_time": "2026-11-26 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -404,7 +404,7 @@
       "video_id": "Df6Xby8M-cg",
       "url": "https://www.instagram.com/reel/Df6Xby8M-cg/",
       "scheduled_time": "2026-11-26 15:30 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -431,7 +431,7 @@
       "video_id": "Df6UAX_gffb",
       "url": "https://www.instagram.com/reel/Df6UAX_gffb/",
       "scheduled_time": "2026-11-27 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -458,7 +458,7 @@
       "video_id": "Df6Pjy4MISh",
       "url": "https://www.instagram.com/reel/Df6Pjy4MISh/",
       "scheduled_time": "2026-11-27 15:30 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -485,7 +485,7 @@
       "video_id": "Df6PZ75suku",
       "url": "https://www.instagram.com/reel/Df6PZ75suku/",
       "scheduled_time": "2026-11-28 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -512,7 +512,7 @@
       "video_id": "Df5Tz6OszVv",
       "url": "https://www.instagram.com/reel/Df5Tz6OszVv/",
       "scheduled_time": "2026-11-28 15:30 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -539,7 +539,7 @@
       "video_id": "Df5C2LZAzWb",
       "url": "https://www.instagram.com/reel/Df5C2LZAzWb/",
       "scheduled_time": "2026-11-29 09:00 UTC",
-      "status": "queued",
+      "status": "unavailable",
       "youtube_id": null,
       "published_url": null,
       "published_at": null
@@ -566,10 +566,10 @@
       "video_id": "Df5HjSbTiFL",
       "url": "https://www.instagram.com/reel/Df5HjSbTiFL/",
       "scheduled_time": "2026-11-29 15:30 UTC",
-      "status": "queued",
-      "youtube_id": null,
-      "published_url": null,
-      "published_at": null
+      "status": "published",
+      "youtube_id": "nvUsrlQdS7s",
+      "published_url": "https://youtube.com/shorts/nvUsrlQdS7s",
+      "published_at": "2026-11-25T09:20:34.785046+00:00"
     },
     {
       "day": 22,
