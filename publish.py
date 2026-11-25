@@ -78,7 +78,14 @@ def get_youtube_client():
 
     return build("youtube", "v3", credentials=creds)
 
-def upload_short(youtube, file_path, title, description, tags, privacy="public"):
+def upload_short(youtube, file_path, title, description, tags, privacy="public", publish_at=None):
+    status_body = {
+        "privacyStatus": "private" if publish_at else privacy,
+        "selfDeclaredMadeForKids": False
+    }
+    if publish_at:
+        status_body["publishAt"] = publish_at
+
     body = {
         "snippet": {
             "title": title[:100],
@@ -86,10 +93,7 @@ def upload_short(youtube, file_path, title, description, tags, privacy="public")
             "tags": tags if isinstance(tags, list) else [tags],
             "categoryId": "20"  # Gaming category
         },
-        "status": {
-            "privacyStatus": privacy,
-            "selfDeclaredMadeForKids": False
-        }
+        "status": status_body
     }
 
     media = MediaFileUpload(

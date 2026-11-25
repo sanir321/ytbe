@@ -2,8 +2,8 @@ name: Viral Shorts Remixer & Publisher (Auto Split Part 1 & 2)
 
 on:
   schedule:
-    # Single daily release window (14:30 UTC = 20:00 IST / 09:30 AM EST - US/India traffic peak)
-    - cron: '30 14 * * *'
+    # Single daily upload window (10:00 UTC = 15:30 IST) -> script schedules YouTube publishAt randomly between 17:00-23:30 IST
+    - cron: '0 10 * * *'
 
   workflow_dispatch:
     inputs:

@@ -11,10 +11,12 @@ Downloads from Instagram (or uses cached local video), applies anti-detection re
 import os
 import sys
 import json
+import math
 import time
+import random
 import argparse
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -174,11 +176,28 @@ def commit_manifest():
         subprocess.run(["git", "pull", "--rebase"])
         subprocess.run(["git", "push"])
 
+IST = timezone(timedelta(hours=5, minutes=30))
+MAX_PART_SEC = 48.0
+
+
+def pick_random_publish_at():
+    """Return a randomized UTC ISO timestamp between 17:00 and 23:30 IST today (or None if too late)."""
+    now_ist = datetime.now(IST)
+    win_start = now_ist.replace(hour=17, minute=0, second=0, microsecond=0)
+    win_end = now_ist.replace(hour=23, minute=30, second=0, microsecond=0)
+    earliest = max(win_start, now_ist + timedelta(minutes=15))
+    if earliest >= win_end:
+        return None
+    span_mins = int((win_end - earliest).total_seconds() // 60)
+    offset_mins = random.randint(0, max(0, span_mins))
+    target_ist = earliest + timedelta(minutes=offset_mins)
+    return target_ist.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def process_target(target_item, target_url, yt, args, queue_data):
     title = target_item.get("title", "Roblox Story") if target_item else "Roblox Story"
     prefix = f"reel_{int(time.time())}_{target_item.get('id', 'item') if target_item else 'url'}"
     raw_path = None
-    desc = ""
     dur = 0.0
 
     # 1. Check if local video already exists
@@ -188,7 +207,7 @@ def process_target(target_item, target_url, yt, args, queue_data):
         print(f"📦 Found local source video: {raw_path} (Duration: {dur}s)")
     else:
         print(f"⬇️ Downloading video from Instagram: {target_url}")
-        raw_path, dl_title, desc, dur = download_instagram_video(target_url, prefix)
+        raw_path, dl_title, _, dur = download_instagram_video(target_url, prefix)
         if not raw_path or not os.path.exists(raw_path):
             print(f"⚠️ Source video unavailable or removed on Instagram: {target_url}")
             if target_item:
@@ -200,14 +219,22 @@ def process_target(target_item, target_url, yt, args, queue_data):
     acc = target_item.get("account", "roblox").upper() if target_item else "ROBLOX"
     badge_label = f"@{acc} REMIX • LIKE & SUB"
 
-    # CASE 1: Single Short (<=60s)
-    if dur <= 60.0:
-        print(f"🎬 Video duration {dur}s <= 60s -> Rendering as Single Full Short")
+    publish_at = None
+    if args.privacy == "public" and not args.immediate:
+        publish_at = pick_random_publish_at()
+        if publish_at:
+            print(f"🕒 Scheduled publishAt (UTC): {publish_at}")
+
+    out_path = None
+
+    # CASE 1: Single Short (<= 49s)
+    if dur <= 49.0:
+        print(f"🎬 Video duration {dur}s <= 49s -> Rendering as Single Short (<50s)")
         out_path = os.path.join(TMP_DIR, f"{prefix}_remix_short.mp4")
         ov = make_overlay(title, bottom_badge=badge_label)
         ov_path = os.path.join(TMP_DIR, f"{prefix}_ov.png")
         ov.save(ov_path)
-        
+
         cmd = [
             "ffmpeg", "-y", "-i", raw_path, "-i", ov_path,
             "-filter_complex", "[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0[vout]",
@@ -218,124 +245,158 @@ def process_target(target_item, target_url, yt, args, queue_data):
             out_path
         ]
         subprocess.run(cmd, check=True)
-        
+
         upload_title = f"{title} 🚨🎮 #Shorts"[:100]
         caption = f"{title} 🚨🎮 #Shorts\n\nWhat would you do? Comment below! 👇\n\n#Roblox #RobloxStory #Shorts #Animation #Viral #Gaming"
         tags = ["roblox", "shorts", "robloxstory", "animation", "gaming", "viral", "fyp"]
-        
-        yt_id, yt_url, rumble_res = None, None, None
+
+        yt_url, rumble_res = None, None
         if not args.dry_run:
             if yt and args.platform in ["all", "youtube"]:
-                yt_id, yt_url = upload_short(yt, out_path, upload_title, caption, tags, privacy=args.privacy)
+                _, yt_url = upload_short(yt, out_path, upload_title, caption, tags, privacy=args.privacy, publish_at=publish_at)
             if args.platform in ["all", "rumble"]:
                 rumble_res = upload_to_rumble(out_path, upload_title, caption, tags)
         else:
-            print(f"[DRY-RUN] Simulating upload for: {upload_title}")
+            print(f"[DRY-RUN] Simulating upload for: {upload_title} (publishAt={publish_at})")
             yt_url = "https://youtube.com/shorts/dry_run_test"
             rumble_res = {"url": "https://rumble.com/dry_run_test"}
-        
+
         if target_item and not args.dry_run:
             target_item["status"] = "published"
             target_item["published_at"] = datetime.now(timezone.utc).isoformat()
+            target_item["scheduled_for"] = publish_at or "immediate"
             target_item["published_youtube"] = yt_url
             target_item["published_rumble"] = rumble_res.get("url") if rumble_res else None
 
-    # CASE 2: Long Video (>60s) -> Split into Part 1 & Part 2 with linked captions
+    # CASE 2: Multi-Part (> 49s) -> Split into N parts (<50s each), upload ONLY next_part today
     else:
-        split_point = round(dur / 2.0, 1)
-        if split_point > 58.0:
-            split_point = 58.0
-        print(f"🎬 Video duration {dur}s > 60s -> Splitting into Part 1 (0-{split_point}s) and Part 2 ({split_point}-{dur}s)")
-            
-        p1_out = os.path.join(TMP_DIR, f"{prefix}_part1.mp4")
-        p2_out = os.path.join(TMP_DIR, f"{prefix}_part2.mp4")
-        
-        ov_p1 = make_overlay(f"{title} (PART 1)", bottom_badge=badge_label)
-        ov_p1_end = make_overlay(f"{title} (PART 1)", bottom_badge=badge_label, cta_text="👉 WATCH PART 2 NEXT! (ON CHANNEL)")
-        ov_p2 = make_overlay(f"{title} (PART 2)", bottom_badge=badge_label)
-        
-        ov_p1_path = os.path.join(TMP_DIR, f"{prefix}_p1.png")
-        ov_p1_end_path = os.path.join(TMP_DIR, f"{prefix}_p1_end.png")
-        ov_p2_path = os.path.join(TMP_DIR, f"{prefix}_p2.png")
-        ov_p1.save(ov_p1_path)
-        ov_p1_end.save(ov_p1_end_path)
-        ov_p2.save(ov_p2_path)
-        
-        # Render Part 1
-        cta_start = max(0, split_point - 3.5)
-        cmd_p1 = [
-            "ffmpeg", "-y", "-ss", "0", "-to", str(split_point), "-i", raw_path,
-            "-i", ov_p1_path, "-i", ov_p1_end_path,
-            "-filter_complex", f"[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0:enable='between(t,0,{cta_start})'[tmp];[tmp][2:v]overlay=0:0:enable='gte(t,{cta_start})'[vout]",
-            "-filter:a", "atempo=1.02,volume=1.05",
-            "-map", "[vout]", "-map", "0:a",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
-            "-c:a", "aac", "-b:a", "192k",
-            p1_out
-        ]
-        subprocess.run(cmd_p1, check=True)
-        
-        # Render Part 2
-        cmd_p2 = [
-            "ffmpeg", "-y", "-ss", str(split_point), "-i", raw_path,
-            "-i", ov_p2_path,
-            "-filter_complex", "[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0[vout]",
-            "-filter:a", "atempo=1.02,volume=1.05",
-            "-map", "[vout]", "-map", "0:a",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
-            "-c:a", "aac", "-b:a", "192k",
-            p2_out
-        ]
-        subprocess.run(cmd_p2, check=True)
-        
-        # Explicit linked captions as per requirements
-        p1_title = f"{title} (Part 1) 🚨👶 #Shorts"[:100]
-        p1_caption = f"{title} (Part 1) 🚨👶 #Shorts\n\nThe story begins! What will happen next? 😱\n\n👉 WATCH PART 2 NEXT ON OUR CHANNEL! (Out now!)\n💬 What would you do? Comment below! 👇\n\n#Roblox #RobloxStory #Shorts #Animation #Viral #Gaming"
-        
-        p2_title = f"{title} (Part 2 Finale) 🚨👑 #Shorts"[:100]
-        p2_caption = f"{title} (Part 2 Finale) 🚨👑 #Shorts\n\nPART 2: The final conclusion!\n(Watch Part 1 on our channel if you missed the beginning!)\n\n💬 Did they make the right choice? Leave a comment! 👇\n\n#Roblox #RobloxStory #Shorts #Animation #Viral #Gaming"
-        
-        tags = ["roblox", "shorts", "robloxstory", "animation", "gaming", "viral", "fyp"]
-        
-        p1_yt_url, p2_yt_url = None, None
-        p1_rm, p2_rm = None, None
-        
-        if not args.dry_run:
-            print("🚀 Uploading Part 1...")
-            if yt and args.platform in ["all", "youtube"]:
-                _, p1_yt_url = upload_short(yt, p1_out, p1_title, p1_caption, tags + ["part1"], privacy=args.privacy)
-            if args.platform in ["all", "rumble"]:
-                p1_rm = upload_to_rumble(p1_out, p1_title, p1_caption, tags + ["part1"])
-            
-            print("🚀 Uploading Part 2...")
-            if yt and args.platform in ["all", "youtube"]:
-                _, p2_yt_url = upload_short(yt, p2_out, p2_title, p2_caption, tags + ["part2"], privacy=args.privacy)
-            if args.platform in ["all", "rumble"]:
-                p2_rm = upload_to_rumble(p2_out, p2_title, p2_caption, tags + ["part2"])
+        total_parts = max(2, math.ceil(dur / MAX_PART_SEC))
+        part_dur = dur / total_parts
+        part_num = int(target_item.get("next_part", 1)) if target_item else 1
+        if part_num > total_parts:
+            part_num = total_parts
+
+        start_s = round((part_num - 1) * part_dur, 2)
+        end_s = round(part_num * part_dur, 2) if part_num < total_parts else dur
+        seg_dur = round(end_s - start_s, 1)
+        is_finale = (part_num == total_parts)
+
+        print(f"🎬 Duration {dur}s -> {total_parts} parts (~{round(part_dur,1)}s each). Rendering ONLY Part {part_num}/{total_parts} ({start_s}s-{end_s}s, {seg_dur}s)")
+
+        out_path = os.path.join(TMP_DIR, f"{prefix}_part{part_num}.mp4")
+        header_label = f"{title} (PART {part_num} FINALE)" if is_finale else f"{title} (PART {part_num}/{total_parts})"
+        ov_main = make_overlay(header_label, bottom_badge=badge_label)
+        ov_main_path = os.path.join(TMP_DIR, f"{prefix}_p{part_num}.png")
+        ov_main.save(ov_main_path)
+
+        if not is_finale:
+            ov_cta = make_overlay(header_label, bottom_badge=badge_label, cta_text=f"👉 WATCH PART {part_num + 1} TOMORROW!")
+            ov_cta_path = os.path.join(TMP_DIR, f"{prefix}_p{part_num}_cta.png")
+            ov_cta.save(ov_cta_path)
+            cta_start = max(0.0, seg_dur - 3.5)
+            vf = f"[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0:enable='between(t,0,{cta_start})'[tmp];[tmp][2:v]overlay=0:0:enable='gte(t,{cta_start})'[vout]"
+            cmd = [
+                "ffmpeg", "-y", "-ss", str(start_s), "-to", str(end_s), "-i", raw_path,
+                "-i", ov_main_path, "-i", ov_cta_path,
+                "-filter_complex", vf,
+                "-filter:a", "atempo=1.02,volume=1.05",
+                "-map", "[vout]", "-map", "0:a",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+                "-c:a", "aac", "-b:a", "192k",
+                out_path
+            ]
         else:
-            print(f"[DRY-RUN] Simulating upload for Part 1: {p1_title}")
-            print(f"[DRY-RUN] Simulating upload for Part 2: {p2_title}")
-            p1_yt_url = "https://youtube.com/shorts/dry_run_p1"
-            p2_yt_url = "https://youtube.com/shorts/dry_run_p2"
-            p1_rm = {"url": "https://rumble.com/dry_run_p1"}
-            p2_rm = {"url": "https://rumble.com/dry_run_p2"}
+            cmd = [
+                "ffmpeg", "-y", "-ss", str(start_s), "-to", str(end_s), "-i", raw_path,
+                "-i", ov_main_path,
+                "-filter_complex", "[0:v]scale=1080:1920,eq=contrast=1.06:brightness=0.01:saturation=1.12[base];[base][1:v]overlay=0:0[vout]",
+                "-filter:a", "atempo=1.02,volume=1.05",
+                "-map", "[vout]", "-map", "0:a",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+                "-c:a", "aac", "-b:a", "192k",
+                out_path
+            ]
+
+        subprocess.run(cmd, check=True)
+
+        if is_finale:
+            upload_title = f"{title} (Part {part_num} Finale) 🚨👑 #Shorts"[:100]
+            caption = (
+                f"{title} (Part {part_num} Finale) 🚨👑 #Shorts\n\n"
+                f"PART {part_num}: The final conclusion!\n"
+                f"(Watch Part 1 on our channel if you missed the beginning!)\n\n"
+                f"💬 Did they make the right choice? Leave a comment! 👇\n\n"
+                f"#Roblox #RobloxStory #Shorts #Animation #Viral #Gaming"
+            )
+        else:
+            upload_title = f"{title} (Part {part_num}/{total_parts}) 🚨👶 #Shorts"[:100]
+            caption = (
+                f"{title} (Part {part_num}/{total_parts}) 🚨👶 #Shorts\n\n"
+                f"Part {part_num} of {total_parts}! What happens next? 😱\n\n"
+                f"👉 PART {part_num + 1} DROPS TOMORROW — Subscribe so you don't miss it!\n"
+                f"💬 What would you do? Comment below! 👇\n\n"
+                f"#Roblox #RobloxStory #Shorts #Animation #Viral #Gaming"
+            )
+
+        tags = ["roblox", "shorts", "robloxstory", "animation", "gaming", "viral", "fyp", f"part{part_num}"]
+        yt_url, rm_res = None, None
+
+        if not args.dry_run:
+            print(f"🚀 Uploading Part {part_num}/{total_parts} ({seg_dur}s)...")
+            if yt and args.platform in ["all", "youtube"]:
+                _, yt_url = upload_short(yt, out_path, upload_title, caption, tags, privacy=args.privacy, publish_at=publish_at)
+            if args.platform in ["all", "rumble"]:
+                rm_res = upload_to_rumble(out_path, upload_title, caption, tags)
+        else:
+            print(f"[DRY-RUN] Simulating upload Part {part_num}/{total_parts}: {upload_title} ({seg_dur}s, publishAt={publish_at})")
+            yt_url = f"https://youtube.com/shorts/dry_run_p{part_num}"
+            rm_res = {"url": f"https://rumble.com/dry_run_p{part_num}"}
 
         if target_item and not args.dry_run:
-            target_item["status"] = "published"
-            target_item["published_at"] = datetime.now(timezone.utc).isoformat()
-            target_item["part1"] = {"youtube": p1_yt_url, "rumble": p1_rm.get("url") if p1_rm else None}
-            target_item["part2"] = {"youtube": p2_yt_url, "rumble": p2_rm.get("url") if p2_rm else None}
+            now_iso = datetime.now(timezone.utc).isoformat()
+            target_item["total_parts"] = total_parts
+            target_item["last_uploaded_at"] = now_iso
+            target_item[f"part{part_num}"] = {
+                "youtube": yt_url,
+                "rumble": rm_res.get("url") if rm_res else None,
+                "published_at": now_iso,
+                "scheduled_for": publish_at or "immediate",
+                "duration_s": seg_dur
+            }
+            if is_finale:
+                target_item["status"] = "published"
+                target_item["published_at"] = now_iso
+                target_item.pop("next_part", None)
+            else:
+                target_item["status"] = "in_progress"
+                target_item["next_part"] = part_num + 1
 
-    # Clean up temporary files
-    for f in [p1_out if 'p1_out' in locals() else None, 
-             p2_out if 'p2_out' in locals() else None,
-             out_path if 'out_path' in locals() else None]:
-        if f and os.path.exists(f):
+    if out_path and os.path.exists(out_path):
+        try:
+            os.remove(out_path)
+        except Exception:
+            pass
+    return True
+
+
+def uploaded_recently(queue_data, hours=18.0):
+    now = datetime.now(timezone.utc)
+    for item in queue_data.get("items", []):
+        ts_list = [item.get("last_uploaded_at"), item.get("published_at")]
+        for k, v in item.items():
+            if k.startswith("part") and isinstance(v, dict):
+                ts_list.append(v.get("published_at"))
+        for ts in ts_list:
+            if not ts:
+                continue
             try:
-                os.remove(f)
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                if (now - dt).total_seconds() < hours * 3600:
+                    return True, round((now - dt).total_seconds() / 3600, 1)
             except Exception:
                 pass
-    return True
+    return False, 0.0
+
 
 def main():
     parser = argparse.ArgumentParser(description="Viral Shorts Remixer & Publisher")
@@ -345,6 +406,8 @@ def main():
     parser.add_argument("--limit", type=int, default=1, help="Number of items to process from queue")
     parser.add_argument("--platform", default="all", choices=["all", "youtube", "rumble"])
     parser.add_argument("--privacy", default="public", choices=["public", "unlisted", "private"])
+    parser.add_argument("--immediate", action="store_true", help="Publish immediately instead of scheduling randomized publishAt")
+    parser.add_argument("--force", action="store_true", help="Bypass 1-Short-per-day 18h cooldown guard")
     parser.add_argument("--dry-run", action="store_true", help="Remix without uploading")
     args = parser.parse_args()
 
@@ -375,28 +438,37 @@ def main():
             print(f"[ERROR] Target ID '{args.target_id}' not found in {QUEUE_FILE}")
             return 1
     else:
-        # Case 3: Pick next items from queue up to limit
+        # Daily 1-Short-per-day cooldown guard
+        if not args.dry_run and not args.force:
+            recent, hrs = uploaded_recently(queue_data, hours=18.0)
+            if recent:
+                print(f"[THROTTLE] Already uploaded a Short {hrs}h ago (<18h). Enforcing 1 Short/day rule. Exiting cleanly.")
+                return 0
+
+        # Case 3: Resume 'in_progress' story first (Part 2, Part 3...), else pick next 'queued_ready_to_remix'
+        candidates = [x for x in queue_data.get("items", []) if x.get("status") == "in_progress"]
+        candidates += [x for x in queue_data.get("items", []) if x.get("status") == "queued_ready_to_remix"]
+
         processed_count = 0
-        for item in queue_data.get("items", []):
-            if item.get("status") == "queued_ready_to_remix":
-                ok = process_target(item, item["instagram_url"], yt, args, queue_data)
-                if ok:
-                    processed_count += 1
-                    if processed_count >= args.limit:
-                        break
-        
+        for item in candidates:
+            ok = process_target(item, item["instagram_url"], yt, args, queue_data)
+            if ok:
+                processed_count += 1
+                if processed_count >= args.limit:
+                    break
+
         if processed_count == 0:
             print("[INFO] No pending items processed.")
             return 0
 
     if not args.dry_run:
-        # Update summary stats in queue file
         queue_data["ready_items"] = sum(1 for x in queue_data.get("items", []) if x.get("status") == "queued_ready_to_remix")
+        queue_data["in_progress_items"] = sum(1 for x in queue_data.get("items", []) if x.get("status") == "in_progress")
         queue_data["published_items"] = sum(1 for x in queue_data.get("items", []) if x.get("status") == "published")
-        
+
         with open(QUEUE_FILE, "w") as qf:
             json.dump(queue_data, qf, indent=2)
-        print(f"💾 Updated {QUEUE_FILE} (Remaining ready: {queue_data['ready_items']})")
+        print(f"💾 Updated {QUEUE_FILE} (In-progress: {queue_data['in_progress_items']}, Ready: {queue_data['ready_items']})")
 
         commit_manifest()
     else:
