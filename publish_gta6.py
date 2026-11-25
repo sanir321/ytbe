@@ -273,13 +273,8 @@ def main():
             except Exception:
                 pass
 
-        target_entry = None
-        for entry in schedule:
-            if entry.get("status") == "queued":
-                target_entry = entry
-                break
-
-        if not target_entry:
+        queued_entries = [e for e in schedule if e.get("status") == "queued"]
+        if not queued_entries:
             print("[INFO] All days in manifest are published! Queue complete.")
             return 0
     else:
@@ -288,19 +283,41 @@ def main():
         if not target_entry:
             print(f"[ERROR] Day {day_num} not found in {MANIFEST_FILE}")
             return 1
+        queued_entries = [target_entry]
+
+    target_entry = None
+    raw_path = None
+    for cand in queued_entries:
+        day_num = cand["day"]
+        print(f"\n==========================================")
+        print(f"🎬 Processing GTA6_DS Day {day_num} [{args.mode.upper()} QUALITY]: {cand['title']}")
+        print(f"🔗 Source URL: {cand['url']}")
+        print(f"==========================================\n")
+
+        cand_raw_path = os.path.join(TMP_DIR, f"raw_gta6_day_{day_num}.mp4")
+        if not os.path.exists(cand_raw_path) and os.path.exists("/tmp/gta6_sample.mp4") and day_num == 1:
+            shutil.copy2("/tmp/gta6_sample.mp4", cand_raw_path)
+            target_entry = cand
+            raw_path = cand_raw_path
+            break
+        try:
+            download_clip(cand["url"], cand_raw_path, source=cand.get("source", "instagram"))
+            target_entry = cand
+            raw_path = cand_raw_path
+            break
+        except Exception as e:
+            print(f"[SKIP] Day {day_num} unavailable/failed download ({e}). Marking unavailable...")
+            cand["status"] = "unavailable"
+            with open(MANIFEST_FILE, "w") as f:
+                json.dump(manifest, f, indent=2)
+            if args.day != "auto":
+                return 1
+
+    if not target_entry or not raw_path:
+        print("[ERROR] No downloadable queued GTA6_DS clips remaining.")
+        return 1
 
     day_num = target_entry["day"]
-    print(f"\n==========================================")
-    print(f"🎬 Processing GTA6_DS Day {day_num} [{args.mode.upper()} QUALITY]: {target_entry['title']}")
-    print(f"🔗 Source URL: {target_entry['url']}")
-    print(f"==========================================\n")
-
-    raw_path = os.path.join(TMP_DIR, f"raw_gta6_day_{day_num}.mp4")
-    # If a pre-cached sample exists, copy it
-    if not os.path.exists(raw_path) and os.path.exists("/tmp/gta6_sample.mp4") and day_num == 1:
-        shutil.copy2("/tmp/gta6_sample.mp4", raw_path)
-    else:
-        download_clip(target_entry["url"], raw_path, source=target_entry.get("source", "instagram"))
 
     if args.mode == "upscale":
         upscaled_path = os.path.join(TMP_DIR, f"upscale_2k_gta6_day_{day_num}.mp4")
