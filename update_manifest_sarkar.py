@@ -1,35 +1,34 @@
 #!/usr/bin/env python3
 """
 Expands manifest_sarkar.json from /home/samirkhadka/sh_sarkar/reels_urls.txt
-Generates high-CTR gaming titles, tags, and daily schedule timestamps.
+Preserves historical published entries (Days 1 to 16) and schedules 1 reel per day for new URLs.
 """
 
 import os
 import json
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 BASE_DIR = "/home/samirkhadka/ytbe"
 MANIFEST_FILE = os.path.join(BASE_DIR, "manifest_sarkar.json")
 URLS_FILE = "/home/samirkhadka/sh_sarkar/reels_urls.txt"
-RAW_DIR = "/home/samirkhadka/sh_sarkar/raw"
 
 HOOK_TITLES = [
-    "M1887 ONE TAP GOD ⚡🔥 #Shorts",
-    "INSANE FAST GLOO WALL 🛡️💨 #Shorts",
-    "DESERT EAGLE HEADSHOT KING 🎯👑 #Shorts",
-    "BRAZIL STYLE FREESTYLE 🇧🇷⚡ #Shorts",
-    "SMOOTH MONTAGE HIGHLIGHTS 🎮✨ #Shorts",
-    "NO RECOIL HEADSHOT BURST 💥🎯 #Shorts",
-    "CUSTOM ROOM 1v4 CLUTCH 🏆🔥 #Shorts",
-    "FASTEST FINGERS IN FREE FIRE ⚡📱 #Shorts",
-    "SNIPER QUICK SCOPE UNREAL 🎯💀 #Shorts",
+    "FASTEST ONE TAP HEADSHOT ⚡🔥 #Shorts",
+    "M1887 MOVEMENT KING 🏃‍♂️💨 #Shorts",
+    "SMOOTH DPI SENSITIVITY HIGHLIGHTS 🎮📱 #Shorts",
+    "INSANE 1v4 CUSTOM ROOM CLUTCH 🏆💀 #Shorts",
+    "DESERT EAGLE HEADSHOT GOD 🎯👑 #Shorts",
+    "BRAZIL STYLE FREESTYLE MONTAGE 🇧🇷⚡ #Shorts",
+    "FASTEST GLOO WALL IN FREE FIRE 🛡️⚡ #Shorts",
     "MP40 SQUAD WIPE HIGHLIGHTS 🌪️🔥 #Shorts",
-    "JUMP SHOT HEADSHOT ACCURACY 🏹🎯 #Shorts",
-    "SMOOTH DPI SENSITIVITY HIGHLIGHTS ⚡📲 #Shorts",
     "UNSTOPPABLE 1v1 DUEL ⚔️🔥 #Shorts",
-    "PRO PLAYER MOVEMENT MONTAGE 🏃‍♂️💨 #Shorts",
-    "MAX DAMAGE HEADSHOT ONLY 🩸🎯 #Shorts"
+    "SNIPER QUICK SCOPE UNREAL 🎯💀 #Shorts",
+    "MAX DAMAGE ONLY RED NUMBERS 🩸🎯 #Shorts",
+    "PRO PLAYER MOVEMENT HIGHLIGHTS 🏃‍♂️⚡ #Shorts",
+    "INSANE FASTEST DRAG HEADSHOT 🏹💥 #Shorts",
+    "SMOOTH MONTAGE HIGHLIGHTS 🎮✨ #Shorts",
+    "NO RECOIL HEADSHOT BURST 💥🎯 #Shorts"
 ]
 
 def main():
@@ -42,49 +41,42 @@ def main():
 
     print(f"Loaded {len(urls)} URLs from {URLS_FILE}")
 
-    # Load existing manifest if present
-    existing_schedule = {}
+    past_entries = []
     if os.path.exists(MANIFEST_FILE):
         with open(MANIFEST_FILE) as f:
-            data = json.load(f)
-            for item in data.get("schedule", []):
-                existing_schedule[item["instagram_url"]] = item
+            old_manifest = json.load(f)
+            past_entries = [entry for entry in old_manifest.get("schedule", []) if entry.get("day", 0) <= 16]
 
-    schedule = []
-    start_date = datetime(2026, 11, 19, 11, 0, tzinfo=timezone.utc)
+    start_date = datetime(2026, 11, 27)
+    slots = ["06:30 UTC", "12:30 UTC"]
 
-    for i, url in enumerate(urls, 1):
+    new_entries = []
+    for idx, url in enumerate(urls):
+        day_num = 17 + idx
         reel_id_m = re.search(r"/(?:reel|p)/([A-Za-z0-9_-]{11})/", url)
-        reel_id = reel_id_m.group(1) if reel_id_m else f"reel_{i}"
-        
-        # Check if already scheduled
-        if url in existing_schedule:
-            entry = existing_schedule[url]
-            entry["day"] = i
-            entry["scheduled_time"] = (start_date + timedelta(days=i-1)).strftime("%Y-%m-%d %H:%M UTC")
-            schedule.append(entry)
-            continue
+        reel_id = reel_id_m.group(1) if reel_id_m else f"reel_{day_num}"
 
-        raw_file = os.path.join(RAW_DIR, f"{reel_id}.mp4")
-        has_local = os.path.exists(raw_file)
-        
-        hook = HOOK_TITLES[(i - 1) % len(HOOK_TITLES)]
-        if i > len(HOOK_TITLES):
-            hook_base = hook.replace(" #Shorts", "")
-            hook = f"{hook_base} (Part {i}) #Shorts"
+        day_offset = idx
+        slot = slots[idx % len(slots)]
+        sched_dt = start_date + timedelta(days=day_offset)
+        sched_str = f"{sched_dt.strftime('%Y-%m-%d')} {slot}"
+
+        hook_base = HOOK_TITLES[idx % len(HOOK_TITLES)]
+        clean_hook = hook_base.replace(" #Shorts", "")
+        title = f"{clean_hook} (Part {idx + 1}) #Shorts"
 
         entry = {
-            "day": i,
+            "day": day_num,
             "type": "instagram_remix",
-            "account": "sameer_exc",
+            "account": "erenexeff",
             "reel_id": reel_id,
             "instagram_url": url,
-            "file_path": raw_file if has_local else None,
-            "title": hook,
+            "file_path": None,
+            "title": title,
             "description": (
-                f"{hook}\n\n"
-                "Rate this Free Fire freestyle montage from 1 to 10 in the comments! 👇\n\n"
-                "🔔 Subscribe to @SHSARKAR for daily Free Fire montages, fast gloo walls, and insane headshot highlights!\n\n"
+                f"{title}\n\n"
+                "Rate this Free Fire insane movement and headshot montage 1 to 10 in comments! 👇\n\n"
+                "🔔 Subscribe to @SHSARKAR for daily Free Fire montages, fast gloo walls, and pro gameplay!\n\n"
                 "#freefire #shorts #freefirehighlights #freefiremobile #gaming #viral #fyp #trending #shsarkar #headshot #freestyle"
             ),
             "tags": [
@@ -102,24 +94,26 @@ def main():
                 "m1887",
                 "gloowall"
             ],
-            "scheduled_time": (start_date + timedelta(days=i-1)).strftime("%Y-%m-%d %H:%M UTC"),
+            "scheduled_time": sched_str,
             "status": "queued"
         }
-        schedule.append(entry)
+        new_entries.append(entry)
+
+    final_schedule = past_entries + new_entries
 
     manifest = {
-        "version": "1.0.0",
+        "version": "2.0.0",
         "channel": "SH SARKAR",
         "channel_id": "UCN5kwanpmxeRNKeqs-4fzMQ",
-        "total_days": len(schedule),
+        "total_days": len(final_schedule),
         "timezone": "UTC",
-        "schedule": schedule
+        "schedule": final_schedule
     }
 
     with open(MANIFEST_FILE, "w") as f:
         json.dump(manifest, f, indent=2)
 
-    print(f"Successfully wrote {len(schedule)} queued days into {MANIFEST_FILE}!")
+    print(f"Successfully wrote {len(final_schedule)} days into {MANIFEST_FILE}!")
 
 if __name__ == "__main__":
     main()

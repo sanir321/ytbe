@@ -195,8 +195,12 @@ def prepare_video(entry, day_num):
         if proc.returncode == 0 and proc.stdout.strip():
             meta = json.loads(proc.stdout)
             uploader = (meta.get("uploader") or meta.get("uploader_id") or "").lower()
-            if uploader and "sameer" not in uploader and "exc" not in uploader:
-                print(f"[SECURITY REJECT] Day {day_num} reel uploader is '{uploader}', NOT sameer_exc! Skipping non-Free-Fire video.")
+            expected_acc = entry.get("account", "").lower()
+            allowed_creators = ["sameer", "exc", "eren", "erenexeff", "xff"]
+            if expected_acc:
+                allowed_creators.append(expected_acc)
+            if uploader and not any(k in uploader for k in allowed_creators):
+                print(f"[SECURITY REJECT] Day {day_num} reel uploader is '{uploader}', NOT authorized creator ({allowed_creators})! Skipping.")
                 return "WRONG_UPLOADER"
     except Exception as e:
         print(f"[SECURITY CHECK] Warning checking uploader: {e}")
@@ -230,6 +234,7 @@ def prepare_video(entry, day_num):
         "-map", "[vout]", "-map", "0:a",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
         "-c:a", "aac", "-b:a", "192k",
+        "-t", "50",
         "-shortest",
         out_file
     ]
