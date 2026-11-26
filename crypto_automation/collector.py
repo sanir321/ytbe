@@ -56,7 +56,7 @@ def search_candidates(
         cookie_file = os.path.expanduser("~/youtube_cookies.txt")
 
     for topic in topics:
-        cmd = ["yt-dlp", "--no-warnings", "--remote-components", "ejs:github", "--dump-json", "--flat-playlist"]
+        cmd = ["yt-dlp", "--no-warnings", "--js-runtimes", "node", "--remote-components", "ejs:github", "--dump-json", "--flat-playlist"]
         if os.path.exists(cookie_file):
             cmd += ["--cookies", cookie_file]
 

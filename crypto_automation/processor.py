@@ -27,6 +27,7 @@ def download_video(youtube_id: str, output_prefix: Optional[str] = None) -> Dict
     cmd = [
         "yt-dlp",
         "--no-warnings",
+        "--js-runtimes", "node",
         "--remote-components", "ejs:github",
         "-f", "bv*[ext=mp4][height<=1080]+ba[ext=m4a]/b[height<=1080]/best",
         "--merge-output-format", "mp4",
@@ -35,7 +36,11 @@ def download_video(youtube_id: str, output_prefix: Optional[str] = None) -> Dict
     if os.path.exists(cookie_file):
         cmd += ["--cookies", cookie_file]
     cmd.append(url)
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        print(f"[YT-DLP ERROR] Exit code {e.returncode}: {e.stderr}")
+        raise
 
     # Get video duration and metadata
     probe_cmd = [

@@ -47,7 +47,7 @@ def run_workflow(
         print(f"🎯 Target video ID manually specified: {youtube_id}")
         meta_cand = None
         try:
-            meta_json = os.popen(f"yt-dlp --no-warnings --remote-components ejs:github {cookie_arg}--dump-json 'https://www.youtube.com/watch?v={youtube_id}'").read().strip()
+            meta_json = os.popen(f"yt-dlp --no-warnings --js-runtimes node --remote-components ejs:github {cookie_arg}--dump-json 'https://www.youtube.com/watch?v={youtube_id}'").read().strip()
             if meta_json:
                 d = json.loads(meta_json)
                 meta_cand = {
@@ -94,7 +94,7 @@ def run_workflow(
 
         # Strict Date Safeguard: Must be recent (2026 upload)
         try:
-            date_check = os.popen(f"yt-dlp --no-warnings --remote-components ejs:github {cookie_arg}--print '%(upload_date)s' 'https://www.youtube.com/watch?v={yid}'").read().strip()
+            date_check = os.popen(f"yt-dlp --no-warnings --js-runtimes node --remote-components ejs:github {cookie_arg}--print '%(upload_date)s' 'https://www.youtube.com/watch?v={yid}'").read().strip()
             if date_check and len(date_check) == 8:
                 u_year = int(date_check[:4])
                 if u_year < 2026:
