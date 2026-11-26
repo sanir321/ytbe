@@ -44,7 +44,15 @@ def get_authenticated_service():
             client_secret=client_secret
         )
         creds.refresh(Request())
-        return build("youtube", "v3", credentials=creds)
+        yt = build("youtube", "v3", credentials=creds)
+        # Channel Safety Lock
+        ch_resp = yt.channels().list(part="snippet", mine=True).execute()
+        if ch_resp.get("items"):
+            cur_id = ch_resp["items"][0]["id"]
+            cur_title = ch_resp["items"][0]["snippet"]["title"]
+            if cur_id != "UCU4JAQ7BGkZW1BYkeZWBCww":
+                raise ValueError(f"FATAL: Connected channel {cur_title} ({cur_id}) does not match GTA6_DS (UCU4JAQ7BGkZW1BYkeZWBCww)! Aborting.")
+        return yt
 
     elif os.path.exists(LOCAL_TOKEN_FILE):
         print(f"[AUTH] Using local token file {LOCAL_TOKEN_FILE}...")
@@ -56,7 +64,15 @@ def get_authenticated_service():
                 creds.refresh(Request())
                 with open(LOCAL_TOKEN_FILE, "wb") as f:
                     pickle.dump(creds, f)
-        return build("youtube", "v3", credentials=creds)
+        yt = build("youtube", "v3", credentials=creds)
+        # Channel Safety Lock
+        ch_resp = yt.channels().list(part="snippet", mine=True).execute()
+        if ch_resp.get("items"):
+            cur_id = ch_resp["items"][0]["id"]
+            cur_title = ch_resp["items"][0]["snippet"]["title"]
+            if cur_id != "UCU4JAQ7BGkZW1BYkeZWBCww":
+                raise ValueError(f"FATAL: Connected channel {cur_title} ({cur_id}) does not match GTA6_DS (UCU4JAQ7BGkZW1BYkeZWBCww)! Aborting.")
+        return yt
 
     else:
         raise RuntimeError("No valid YouTube credentials found in environment or local pickle file.")

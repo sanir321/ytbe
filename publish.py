@@ -76,7 +76,20 @@ def get_youtube_client():
         creds.refresh(Request())
         print("[AUTH] Token refreshed successfully.")
 
-    return build("youtube", "v3", credentials=creds)
+    yt = build("youtube", "v3", credentials=creds)
+    # Channel Safety Lock
+    try:
+        ch_resp = yt.channels().list(part="snippet", mine=True).execute()
+        if ch_resp.get("items"):
+            cur_id = ch_resp["items"][0]["id"]
+            cur_title = ch_resp["items"][0]["snippet"]["title"]
+            if cur_id != "UC_Jngx7J4YyWaeD18FyEniw":
+                raise ValueError(f"FATAL: Connected channel {cur_title} ({cur_id}) does not match ROBLOX OING (UC_Jngx7J4YyWaeD18FyEniw)! Aborting.")
+    except Exception as e:
+        if "FATAL" in str(e):
+            raise
+        print(f"[AUTH WARNING] Channel safety check warning: {e}")
+    return yt
 
 def upload_short(youtube, file_path, title, description, tags, privacy="public", publish_at=None):
     status_body = {

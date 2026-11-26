@@ -407,11 +407,12 @@
         "gloowall"
       ],
       "scheduled_time": "2026-11-25 12:30 UTC",
-      "status": "deleted_no_audio",
+      "status": "deleted_wrong_clip",
       "youtube_id": "DFiWyrsSXsc",
       "published_url": null,
       "published_at": "2026-11-25T17:31:45.892826+00:00",
-      "deleted_at": "2026-11-26T02:23:23.472064+00:00"
+      "deleted_at": "2026-11-26T02:23:23.472064+00:00",
+      "note": "Removed: Non-Free-Fire reel from timthetatman"
     },
     {
       "day": 15,
@@ -438,10 +439,11 @@
         "gloowall"
       ],
       "scheduled_time": "2026-11-26 06:30 UTC",
-      "status": "published",
+      "status": "deleted_wrong_clip",
       "youtube_id": "gj3e8gzvJ7o",
-      "published_url": "https://youtube.com/shorts/gj3e8gzvJ7o",
-      "published_at": "2026-11-25T17:57:21.910162+00:00"
+      "published_url": null,
+      "published_at": "2026-11-25T17:57:21.910162+00:00",
+      "note": "Removed: Non-Free-Fire reel from visit.dubai"
     },
     {
       "day": 16,
@@ -468,7 +470,9 @@
         "gloowall"
       ],
       "scheduled_time": "2026-11-26 12:30 UTC",
-      "status": "queued"
+      "status": "skipped_wrong_account",
+      "published_url": null,
+      "note": "Skipped: Non-Free-Fire reel from timthetatman"
     },
     {
       "day": 17,
@@ -495,7 +499,10 @@
         "gloowall"
       ],
       "scheduled_time": "2026-11-27 06:30 UTC",
-      "status": "queued"
+      "status": "queued",
+      "published_at": null,
+      "published_url": null,
+      "youtube_id": null
     },
     {
       "day": 18,

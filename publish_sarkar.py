@@ -23,7 +23,7 @@ from googleapiclient.http import MediaFileUpload
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MANIFEST_FILE = os.path.join(BASE_DIR, "manifest_sarkar.json")
 TMP_DIR = os.path.join(BASE_DIR, "tmp_remix_sarkar")
-TOKEN_PICKLE = os.path.expanduser("~/.youtube_token.pickle")
+TOKEN_PICKLE = os.path.expanduser("~/.sarkar_token.pickle")
 os.makedirs(TMP_DIR, exist_ok=True)
 
 SCOPES = [
@@ -122,7 +122,15 @@ def get_authenticated_service():
         )
         if not creds.valid:
             creds.refresh(Request())
-        return build("youtube", "v3", credentials=creds)
+        yt = build("youtube", "v3", credentials=creds)
+        # Channel Safety Lock
+        ch_resp = yt.channels().list(part="snippet", mine=True).execute()
+        if ch_resp.get("items"):
+            cur_id = ch_resp["items"][0]["id"]
+            cur_title = ch_resp["items"][0]["snippet"]["title"]
+            if cur_id != "UCN5kwanpmxeRNKeqs-4fzMQ":
+                raise ValueError(f"FATAL: Authenticated to {cur_title} ({cur_id}), but expected SH SARKAR (UCN5kwanpmxeRNKeqs-4fzMQ)! Aborting.")
+        return yt
 
     if os.path.exists(TOKEN_PICKLE):
         print(f"[AUTH] Loading local credentials from {TOKEN_PICKLE}...")
@@ -132,7 +140,15 @@ def get_authenticated_service():
             creds.refresh(Request())
             with open(TOKEN_PICKLE, "wb") as f:
                 pickle.dump(creds, f)
-        return build("youtube", "v3", credentials=creds)
+        yt = build("youtube", "v3", credentials=creds)
+        # Channel Safety Lock
+        ch_resp = yt.channels().list(part="snippet", mine=True).execute()
+        if ch_resp.get("items"):
+            cur_id = ch_resp["items"][0]["id"]
+            cur_title = ch_resp["items"][0]["snippet"]["title"]
+            if cur_id != "UCN5kwanpmxeRNKeqs-4fzMQ":
+                raise ValueError(f"FATAL: Local pickle belongs to {cur_title} ({cur_id}), NOT SH SARKAR! Aborting.")
+        return yt
 
     raise ValueError("No credentials found! Set SARKAR_YT_* env vars or ensure ~/.youtube_token.pickle exists.")
 
@@ -169,6 +185,21 @@ def prepare_video(entry, day_num):
         if not downloaded:
             subprocess.run(download_cmd + [entry["instagram_url"]], check=True)
         raw_path = os.path.join(TMP_DIR, f"raw_day_{day_num}.mp4")
+
+    # Uploader Verification Check: reject non-Free-Fire / non-sameer_exc reels
+    try:
+        check_cmd = ["yt-dlp", "--no-warnings", "--dump-json", entry["instagram_url"]]
+        if cookie_path and os.path.exists(cookie_path):
+            check_cmd += ["--cookies", cookie_path]
+        proc = subprocess.run(check_cmd, capture_output=True, text=True, timeout=12)
+        if proc.returncode == 0 and proc.stdout.strip():
+            meta = json.loads(proc.stdout)
+            uploader = (meta.get("uploader") or meta.get("uploader_id") or "").lower()
+            if uploader and "sameer" not in uploader and "exc" not in uploader:
+                print(f"[SECURITY REJECT] Day {day_num} reel uploader is '{uploader}', NOT sameer_exc! Skipping non-Free-Fire video.")
+                return "WRONG_UPLOADER"
+    except Exception as e:
+        print(f"[SECURITY CHECK] Warning checking uploader: {e}")
 
     clean_title = entry["title"].split("#")[0].strip()
     ov = make_overlay(clean_title)
@@ -335,6 +366,11 @@ def main():
             print(f"⚠️ Error preparing Day {day_num} ({e}). Marking failed and advancing to next queued candidate...")
             entry["status"] = "download_failed"
             entry["error"] = str(e)
+            continue
+        if remixed_video == "WRONG_UPLOADER":
+            entry["status"] = "skipped_wrong_account"
+            entry["skipped_at"] = datetime.now(timezone.utc).isoformat()
+            print(f"🛑 Day {day_num} skipped (non-Free-Fire reel). Advancing to next queued candidate...")
             continue
         if remixed_video is None:
             # Video rejected due to missing audio
