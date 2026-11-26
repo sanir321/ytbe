@@ -1,6 +1,6 @@
 {
   "total_items": 87,
-  "ready_items": 79,
+  "ready_items": 78,
   "single_shorts_count": 20,
   "split_parts_count": 67,
   "items": [
@@ -164,7 +164,17 @@
       "format": "Split Part 1 & Part 2 (>60s)",
       "file_path": "/home/samirkhadka/instagram_library/zaylento/Dfupsh2xPQn.mp4",
       "instagram_url": "https://www.instagram.com/reel/Dfupsh2xPQn/",
-      "status": "queued_ready_to_remix"
+      "status": "in_progress",
+      "total_parts": 3,
+      "last_uploaded_at": "2026-11-26T19:28:14.869802+00:00",
+      "part1": {
+        "youtube": "https://youtube.com/shorts/4HkhTOhxky4",
+        "rumble": null,
+        "published_at": "2026-11-26T19:28:14.869802+00:00",
+        "scheduled_for": "2026-11-27T17:31:00Z",
+        "duration_s": 45.2
+      },
+      "next_part": 2
     },
     {
       "account": "moodlyvines",
@@ -1103,5 +1113,6 @@
       "status": "queued_ready_to_remix"
     }
   ],
-  "published_items": 6
+  "published_items": 6,
+  "in_progress_items": 1
 }
