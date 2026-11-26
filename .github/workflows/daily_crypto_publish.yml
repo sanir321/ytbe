@@ -56,7 +56,13 @@ jobs:
       - name: Execute Autonomous Publisher
         env:
           RUMBLE_COOKIES_JSON: ${{ secrets.RUMBLE_COOKIES_JSON }}
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
         run: |
+          if [ -n "$YOUTUBE_COOKIES" ]; then
+            echo "$YOUTUBE_COOKIES" > yt_cookies.txt
+            export YOUTUBE_COOKIES_PATH="$PWD/yt_cookies.txt"
+            echo "Loaded YouTube cookies into $YOUTUBE_COOKIES_PATH"
+          fi
           CMD="python crypto_automation/workflow.py"
           if [ "${{ inputs.auto }}" = "true" ] || [ "${{ github.event_name }}" = "schedule" ]; then
             CMD="$CMD --auto"

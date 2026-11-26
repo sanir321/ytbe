@@ -19,15 +19,22 @@ def download_video(youtube_id: str, output_prefix: Optional[str] = None) -> Dict
     raw_path = os.path.join(WORK_DIR, f"{output_prefix}_raw.mp4")
     url = f"https://www.youtube.com/watch?v={youtube_id}"
 
+    cookie_file = os.environ.get("YOUTUBE_COOKIES_PATH") or "yt_cookies.txt"
+    if not os.path.exists(cookie_file):
+        cookie_file = os.path.expanduser("~/youtube_cookies.txt")
+
     print(f"📥 Downloading video {youtube_id}...")
     cmd = [
         "yt-dlp",
-        "--extractor-args", "youtube:player_client=android,web",
-        "-f", "bv*[ext=mp4][height<=1080]+ba[ext=m4a]/b[ext=mp4]/best",
+        "--no-warnings",
+        "--remote-components", "ejs:github",
+        "-f", "bv*[ext=mp4][height<=1080]+ba[ext=m4a]/b[height<=1080]/best",
         "--merge-output-format", "mp4",
-        "-o", raw_path,
-        url
+        "-o", raw_path
     ]
+    if os.path.exists(cookie_file):
+        cmd += ["--cookies", cookie_file]
+    cmd.append(url)
     subprocess.run(cmd, check=True)
 
     # Get video duration and metadata

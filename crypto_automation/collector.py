@@ -51,13 +51,21 @@ def search_candidates(
     candidates = []
     seen_ids = set()
 
+    cookie_file = os.environ.get("YOUTUBE_COOKIES_PATH") or "yt_cookies.txt"
+    if not os.path.exists(cookie_file):
+        cookie_file = os.path.expanduser("~/youtube_cookies.txt")
+
     for topic in topics:
+        cmd = ["yt-dlp", "--no-warnings", "--remote-components", "ejs:github", "--dump-json", "--flat-playlist"]
+        if os.path.exists(cookie_file):
+            cmd += ["--cookies", cookie_file]
+
         if topic.startswith("http://") or topic.startswith("https://"):
-            cmd = ["yt-dlp", "--dump-json", "--flat-playlist", "--playlist-end", str(max_per_topic), topic]
+            cmd += ["--playlist-end", str(max_per_topic), topic]
             topic_label = topic.split("search_query=")[-1].split("&")[0].replace("+", " ") if "search_query=" in topic else topic.split("@")[-1].replace("/videos", "")
         else:
             query = f"ytsearch{max_per_topic}:{topic}"
-            cmd = ["yt-dlp", "--dump-json", "--flat-playlist", query]
+            cmd += [query]
             topic_label = topic
         try:
             res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=25)

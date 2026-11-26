@@ -36,13 +36,18 @@ def run_workflow(
     print(f"🕒 Timestamp: {os.popen('date').read().strip()}")
     print("=" * 65)
 
+    cookie_file = os.environ.get("YOUTUBE_COOKIES_PATH") or "yt_cookies.txt"
+    if not os.path.exists(cookie_file):
+        cookie_file = os.path.expanduser("~/youtube_cookies.txt")
+    cookie_arg = f"--cookies '{cookie_file}' " if os.path.exists(cookie_file) else ""
+
     # 1. Step 1: Candidate Selection
     candidates = []
     if youtube_id:
         print(f"🎯 Target video ID manually specified: {youtube_id}")
         meta_cand = None
         try:
-            meta_json = os.popen(f"yt-dlp --extractor-args 'youtube:player_client=android,web' --dump-json 'https://www.youtube.com/watch?v={youtube_id}'").read().strip()
+            meta_json = os.popen(f"yt-dlp --no-warnings --remote-components ejs:github {cookie_arg}--dump-json 'https://www.youtube.com/watch?v={youtube_id}'").read().strip()
             if meta_json:
                 d = json.loads(meta_json)
                 meta_cand = {
@@ -89,7 +94,7 @@ def run_workflow(
 
         # Strict Date Safeguard: Must be recent (2026 upload)
         try:
-            date_check = os.popen(f"yt-dlp --print '%(upload_date)s' 'https://www.youtube.com/watch?v={yid}'").read().strip()
+            date_check = os.popen(f"yt-dlp --no-warnings --remote-components ejs:github {cookie_arg}--print '%(upload_date)s' 'https://www.youtube.com/watch?v={yid}'").read().strip()
             if date_check and len(date_check) == 8:
                 u_year = int(date_check[:4])
                 if u_year < 2026:
