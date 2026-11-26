@@ -29,7 +29,7 @@ def download_video(youtube_id: str, output_prefix: Optional[str] = None) -> Dict
         "--no-warnings",
         "--js-runtimes", "node",
         "--remote-components", "ejs:github",
-        "-f", "bv*[ext=mp4][height<=1080]+ba[ext=m4a]/b[height<=1080]/best",
+        "-f", "bv*[height<=1080]+ba/b[height<=1080]/best",
         "--merge-output-format", "mp4",
         "-o", raw_path
     ]
