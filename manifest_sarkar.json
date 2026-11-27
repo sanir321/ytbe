@@ -499,7 +499,10 @@
         "gloowall"
       ],
       "scheduled_time": "2026-11-27 06:30 UTC",
-      "status": "queued"
+      "status": "published",
+      "youtube_id": "eRYjSSC8z-o",
+      "published_url": "https://youtube.com/shorts/eRYjSSC8z-o",
+      "published_at": "2026-11-27T16:55:17.764841+00:00"
     },
     {
       "day": 18,
