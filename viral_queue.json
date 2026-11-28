@@ -164,9 +164,9 @@
       "format": "Split Part 1 & Part 2 (>60s)",
       "file_path": "/home/samirkhadka/instagram_library/zaylento/Dfupsh2xPQn.mp4",
       "instagram_url": "https://www.instagram.com/reel/Dfupsh2xPQn/",
-      "status": "in_progress",
+      "status": "published",
       "total_parts": 3,
-      "last_uploaded_at": "2026-11-27T19:24:28.223344+00:00",
+      "last_uploaded_at": "2026-11-28T18:01:29.630760+00:00",
       "part1": {
         "youtube": "https://youtube.com/shorts/4HkhTOhxky4",
         "rumble": null,
@@ -174,14 +174,21 @@
         "scheduled_for": "2026-11-27T17:31:00Z",
         "duration_s": 45.2
       },
-      "next_part": 3,
       "part2": {
         "youtube": "https://youtube.com/shorts/4Qr1Lp4aC2A",
         "rumble": null,
         "published_at": "2026-11-27T19:24:28.223344+00:00",
         "scheduled_for": "2026-11-28T15:37:00Z",
         "duration_s": 45.2
-      }
+      },
+      "part3": {
+        "youtube": "https://youtube.com/shorts/KbHmRlAChRs",
+        "rumble": null,
+        "published_at": "2026-11-28T18:01:29.630760+00:00",
+        "scheduled_for": "immediate",
+        "duration_s": 45.2
+      },
+      "published_at": "2026-11-28T18:01:29.630760+00:00"
     },
     {
       "account": "moodlyvines",
@@ -1120,6 +1127,6 @@
       "status": "queued_ready_to_remix"
     }
   ],
-  "published_items": 6,
-  "in_progress_items": 1
+  "published_items": 7,
+  "in_progress_items": 0
 }
