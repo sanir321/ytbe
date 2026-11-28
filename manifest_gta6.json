@@ -1052,10 +1052,10 @@
       "video_id": "Df46PmUzXR8",
       "url": "https://www.instagram.com/reel/Df46PmUzXR8/",
       "scheduled_time": "2026-12-08 15:30 UTC",
-      "status": "queued",
-      "youtube_id": null,
-      "published_url": null,
-      "published_at": null
+      "status": "published",
+      "youtube_id": "i8POrtDpG54",
+      "published_url": "https://youtube.com/shorts/i8POrtDpG54",
+      "published_at": "2026-11-28T00:32:24.265535+00:00"
     },
     {
       "day": 40,
