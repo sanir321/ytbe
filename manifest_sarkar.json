@@ -559,7 +559,10 @@
         "gloowall"
       ],
       "scheduled_time": "2026-11-29 06:30 UTC",
-      "status": "queued"
+      "status": "published",
+      "youtube_id": "yaKqEcB--Zc",
+      "published_url": "https://youtube.com/shorts/yaKqEcB--Zc",
+      "published_at": "2026-11-28T15:45:43.784642+00:00"
     },
     {
       "day": 20,
